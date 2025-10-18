@@ -1,4 +1,4 @@
-# polygen_suite.py — 生成三类 simple polygon，并返回双端队列（deque）
+# polygon_generate_suite.py — 生成三类 simple polygon，并返回双端队列（deque）
 from __future__ import annotations
 from typing import List, Tuple, Dict, Set
 import json, math, random
@@ -319,3 +319,54 @@ def generate_with_marks(which: str, params_path: str = "params.json") -> Tuple[d
     else:
         raise ValueError("which must be 'A'|'B'|'C'")
     return pts, ctx.inserted_points
+
+# ---------------- 仅 simple 约束的生成器（复杂度测试） ----------------
+def _scaffold_simple_only(rng: random.Random, n: int, max_retries: int) -> List[Point]:
+    """
+    仅保证 simple：随机散点 → 以质心极角排序 → 检查 simple，失败重试。
+    不设面积阈值，不依赖 params.json 的 epsilon_area_min。
+    """
+    for _ in range(max_retries):
+        # 取整数格点，避免重复
+        cx, cy = rng.randint(30, 70), rng.randint(30, 70)
+        pts = set()
+        # 在 20..80 的 61×61 网格中采样，足以容纳 n=1000
+        while len(pts) < n:
+            pts.add((rng.randint(20, 80), rng.randint(20, 80)))
+        P = list(pts)
+
+        # 以质心为参考做极角排序
+        gx = sum(x for x, _ in P) / n
+        gy = sum(y for _, y in P) / n
+        P.sort(key=lambda p: math.atan2(p[1] - gy, p[0] - gx))
+
+        if is_simple(P):
+            return P
+    raise RuntimeError(f"simple-only scaffold fail: retries={max_retries}, n={n}")
+
+
+def generate_simple_only(n: int, params_path: str = "params.json") -> deque:
+    """
+    复杂度测试用：生成 n 点 simple polygon（仅 simple 约束）。
+    返回 deque(points)，不区分脚手架/插入点。
+    """
+    cfg = load_params(params_path)
+    # 与现有 A/B/C 的种子相互独立，避免干扰
+    seed_offset = {10: 10001, 100: 10002, 1000: 10003}.get(n, 19997)
+    rng = random.Random(cfg["seed"] + seed_offset)
+    P = _scaffold_simple_only(rng, n, max_retries=cfg["max_retries"])
+    # 方向不强制，若需要 CCW 可按需翻转：
+    # if poly_area_signed(P) < 0: P.reverse()
+    return deque(P)
+
+
+def generate_complexity_cases(params_path: str = "params.json"):
+    """
+    一键得到三组规模：10、100、1000。
+    返回 dict: {10: deque, 100: deque, 1000: deque}
+    """
+    return {
+        10: generate_simple_only(10, params_path),
+        100: generate_simple_only(100, params_path),
+        1000: generate_simple_only(1000, params_path),
+    }
