@@ -1,0 +1,126 @@
+%!TEX root = report_template.tex
+
+\documentclass{article}
+\usepackage{CJKutf8}
+\usepackage{graphicx}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{hyperref}
+\usepackage{subfigure}
+\usepackage{amsmath}  
+
+\usepackage{geometry}
+\geometry{left=3.5cm,right=3.5cm,top=4.0cm,bottom=4.0cm}
+\usepackage{times}
+
+
+\usepackage{algorithm}  
+\usepackage{algpseudocode}  
+\usepackage{amsmath}  
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}  % Use Input in the format of Algorithm  
+\renewcommand{\algorithmicensure}{\textbf{Output:}} % Use Output in the format of Algorithm    
+\usepackage{listings}
+\usepackage{url}
+
+\usepackage{etoolbox}
+\newtoggle{solution}
+\toggletrue{solution}
+% \togglefalse{solution}
+
+\usepackage{color}
+\usepackage[dvipsnames]{xcolor}
+\newcommand{\solution}[2][0pt]{\iftoggle{solution}{\smallskip{\color{red}{\flushleft\textbf{Solution}:}\par#2}}{\vspace*{#1}}}
+
+\renewcommand{\baselinestretch}{1.2}%Adjust Line Spacing
+%\geometry{left=2.0cm,right=2.0cm,top=2.0cm,bottom=2.0cm}% Adjust Margins of the File
+
+% Create horizontal rule command with an argument of height
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
+% Set the title here
+\title{
+    \normalfont \normalsize
+    \large \textsc{ShanghaiTech University} \\ [15pt]
+    \horrule{2pt} \\[0.5cm] % Thin top horizontal rule
+    \huge CS271 Computer Graphics \uppercase\expandafter{\romannumeral 2} \\ % The assignment title
+    \LARGE Fall 2025\\
+    \LARGE Problem Set 1\\
+    \horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
+}
+% wrong usage of \author, never mind
+\author{}
+\date{Due: 23:59, Oct. 24, 2025}
+
+% Add the support for auto numbering
+% use \problem{title} or \problem[number]{title} to add a new problem
+% also \subproblem is supported, just use it like \subsection
+\newcounter{ProblemCounter}
+\newcounter{oldvalue}
+\newcommand{\problem}[2][-1]{
+	\setcounter{oldvalue}{\value{secnumdepth}}
+	\setcounter{secnumdepth}{0}
+	\ifnum#1>0
+		\setcounter{ProblemCounter}{#1}
+	\else
+		\stepcounter{ProblemCounter}
+	\fi
+	\section{Problem \arabic{ProblemCounter}: #2}
+	\setcounter{secnumdepth}{\value{oldvalue}}
+}
+\newcommand{\subproblem}[1]{
+	\setcounter{oldvalue}{\value{section}}
+	\setcounter{section}{\value{ProblemCounter}}
+	\subsection{#1}
+	\setcounter{section}{\value{oldvalue}}
+}
+
+\begin{document}
+\maketitle
+\vspace{3ex}
+
+\begin{enumerate}
+%\item Please write your solutions in English. 
+\item Submit your \textcolor{blue}{\textbf{PDF}} solution to the course \textbf{Gradescope}. \textbf{[Code: 8XV4G8]}
+\item Submit your \textcolor{blue}{\textbf{Source Code and PDF as a zip file}} to the \textbf{ShanghaiTech EPAN}:  \url{https://epan.shanghaitech.edu.cn/l/RF2KH8}. [\textbf{Filename:} \verb|name_2025xx(your id)_hw1.zip|]
+% \item If you want to submit a handwritten version, scan it clearly.
+\item There are no restrictions on programming languages.  
+\item You are required to follow ShanghaiTech's academic honesty policies. You are allowed to discuss problems with other students, but you must write up your solutions by yourselves. You are not allowed to copy materials from other students or from online or published resources. Violating academic honesty can result in serious penalties.  
+\end{enumerate}
+
+\newpage
+
+\problem{Melkman's Algorithm for Simple Polygon Convex Hull}
+
+Implement Melkman's algorithm to compute the convex hull of a simple polygon in $\mathcal{O}(n)$ time complexity.\bigskip
+
+\noindent \textbf{Reference:} Lecture 2, page 71
+
+\noindent \textbf{Requirements:}
+\begin{enumerate}
+    \item \textbf{Input:} A simple polygon represented as an ordered sequence of n vertices.
+    \item \textbf{Output:} The convex hull vertices in counterclockwise order.
+    \item Complexity analysis explaining why the algorithm achieves $\mathcal{O}(n)$ time.
+    \item Test cases with at least three different polygons.
+\end{enumerate}
+
+\newpage
+
+\problem{General Voronoi}
+
+Study general Voronoi diagrams and implement one variant of your choice.\bigskip
+
+\noindent \textbf{Reference:} Slides of General Voronoi.
+
+\noindent \textbf{Requirements:}
+\begin{enumerate}
+    \item Explain which variant you chose and why.
+    \item Implement the algorithm with proper data structures.
+    \item Visualize the result (2D plot showing the sites and Voronoi regions).
+    \item Analyze the time and space complexity.
+    \item Test cases with at least three different point configurations.
+\end{enumerate}
+
+\newpage
+
+\end{document}

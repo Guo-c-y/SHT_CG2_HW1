@@ -1,0 +1,9 @@
+{
+  "seed": 42,
+  "epsilon_point": 1,
+  "epsilon_len": 1,
+  "epsilon_edge": 1,
+  "epsilon_area_min": 10,
+  "max_retries": 500,
+  "label_every": 3
+}

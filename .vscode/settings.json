@@ -1,0 +1,25 @@
+{
+  "latex-workshop.latex.path": "/Library/TeX/texbin",
+  "latex-workshop.latex.tools": [
+    {
+      "name": "latexmk",
+      "command": "latexmk",
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "-pdf",
+        "-auxdir=%DIR%/latex_aux",   // 英文目录
+        "-emulate-aux-dir",
+        "%DOC%"
+      ]
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    { "name": "latexmk", "tools": ["latexmk"] }
+  ],
+  "latex-workshop.view.pdf.viewer": "tab",
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.synctex.afterBuild.enabled": true,
+  "terminal.integrated.inheritEnv": true
+}
