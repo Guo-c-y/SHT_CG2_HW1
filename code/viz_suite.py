@@ -1,4 +1,3 @@
-# code/viz_suite.py — polygons & hulls viewer (self-contained)
 from __future__ import annotations
 from typing import List, Tuple, Sequence, Deque
 from collections import deque
