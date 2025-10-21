@@ -1,22 +1,23 @@
+from __future__ import annotations
+
 from collections import deque
-from typing import List, Tuple, Iterable, Optional
-from importlib import resources
+from pathlib import Path
+from typing import Iterable, List, Optional, Tuple
 import json
 import math
 import random
-from collections import deque
-from typing import List, Tuple
-from pathlib import Path
-import json
 
 Point = Tuple[int, int]
+
 
 # ---------------- Geometry utils ----------------
 def _cross(ax: int, ay: int, bx: int, by: int) -> int:
     return ax * by - ay * bx
 
+
 def _orient(a: Point, b: Point, c: Point) -> int:
     return _cross(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1])
+
 
 def _on_seg(a: Point, b: Point, c: Point) -> bool:
     return (
@@ -24,30 +25,41 @@ def _on_seg(a: Point, b: Point, c: Point) -> bool:
         and min(a[1], b[1]) <= c[1] <= max(a[1], b[1])
     )
 
+
 def _proper_intersect(a: Point, b: Point, c: Point, d: Point) -> bool:
     o1 = _orient(a, b, c)
     o2 = _orient(a, b, d)
     o3 = _orient(c, d, a)
     o4 = _orient(c, d, b)
-    if o1 == 0 and _on_seg(a, b, c): return True
-    if o2 == 0 and _on_seg(a, b, d): return True
-    if o3 == 0 and _on_seg(c, d, a): return True
-    if o4 == 0 and _on_seg(c, d, b): return True
+    if o1 == 0 and _on_seg(a, b, c):
+        return True
+    if o2 == 0 and _on_seg(a, b, d):
+        return True
+    if o3 == 0 and _on_seg(c, d, a):
+        return True
+    if o4 == 0 and _on_seg(c, d, b):
+        return True
     return (o1 > 0) != (o2 > 0) and (o3 > 0) != (o4 > 0)
 
-# ---- 新增：计算两线段的交点（仅用于诊断输出；平行或重合返回 None）----
-def _segment_intersection_point(a: Point, b: Point, c: Point, d: Point):
-    x1, y1 = a; x2, y2 = b; x3, y3 = c; x4, y4 = d
-    den = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
+
+def _segment_intersection_point(a: Point, b: Point, c: Point, d: Point) -> tuple[float, float] | None:
+    """Return intersection point of segments ab and cd for diagnostics.
+    Parallel or coincident lines return None.
+    """
+    x1, y1 = a
+    x2, y2 = b
+    x3, y3 = c
+    x4, y4 = d
+    den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
     if den == 0:
         return None
-    # 使用浮点以便诊断
-    px = ((x1*y2 - y1*x2)*(x3-x4) - (x1-x2)*(x3*y4 - y3*x4)) / den
-    py = ((x1*y2 - y1*x2)*(y3-y4) - (y1-y2)*(x3*y4 - y3*x4)) / den
-    return (float(px), float(py))
+    px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / den
+    py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den
+    return float(px), float(py)
 
-# ---- 修改：保持签名与返回值不变；发现问题时打印详细诊断 ----
+
 def _is_simple(poly: List[Point]) -> bool:
+    """Return True if polygon has no self-intersections. Print diagnostics if not."""
     n = len(poly)
     if n < 3:
         print(f"[diagnose] polygon has <3 points (n={n}).")
@@ -56,15 +68,16 @@ def _is_simple(poly: List[Point]) -> bool:
     problems = []
     for i in range(n):
         a, b = poly[i], poly[(i + 1) % n]
-        # 零长度边诊断
         if a == b:
-            problems.append({
-                "type": "zero-length-edge",
-                "edge": (i, (i + 1) % n),
-                "pts": (a, b)
-            })
+            problems.append(
+                {
+                    "type": "zero-length-edge",
+                    "edge": (i, (i + 1) % n),
+                    "pts": (a, b),
+                }
+            )
         for j in range(i + 1, n):
-            # 跳过相邻边与共享端点
+            # skip adjacent edges or those sharing endpoints
             if j == i or (j + 1) % n == i or (i + 1) % n == j:
                 continue
             c, d = poly[j], poly[(j + 1) % n]
@@ -75,55 +88,72 @@ def _is_simple(poly: List[Point]) -> bool:
             o4 = _orient(c, d, b)
 
             touched = None
-            if o1 == 0 and _on_seg(a, b, c): touched = ("touch", "c_on_ab")
-            elif o2 == 0 and _on_seg(a, b, d): touched = ("touch", "d_on_ab")
-            elif o3 == 0 and _on_seg(c, d, a): touched = ("touch", "a_on_cd")
-            elif o4 == 0 and _on_seg(c, d, b): touched = ("touch", "b_on_cd")
+            if o1 == 0 and _on_seg(a, b, c):
+                touched = ("touch", "c_on_ab")
+            elif o2 == 0 and _on_seg(a, b, d):
+                touched = ("touch", "d_on_ab")
+            elif o3 == 0 and _on_seg(c, d, a):
+                touched = ("touch", "a_on_cd")
+            elif o4 == 0 and _on_seg(c, d, b):
+                touched = ("touch", "b_on_cd")
 
             if touched:
-                problems.append({
-                    "type": touched[0],
-                    "subtype": touched[1],
-                    "edges": ((i, (i + 1) % n), (j, (j + 1) % n)),
-                    "points": (a, b, c, d),
-                    "at": None  # 端点或在线上，不唯一
-                })
+                problems.append(
+                    {
+                        "type": touched[0],
+                        "subtype": touched[1],
+                        "edges": ((i, (i + 1) % n), (j, (j + 1) % n)),
+                        "points": (a, b, c, d),
+                        "at": None,
+                    }
+                )
                 continue
 
             if (o1 > 0) != (o2 > 0) and (o3 > 0) != (o4 > 0):
                 ip = _segment_intersection_point(a, b, c, d)
-                problems.append({
-                    "type": "proper-cross",
-                    "edges": ((i, (i + 1) % n), (j, (j + 1) % n)),
-                    "points": (a, b, c, d),
-                    "at": ip
-                })
+                problems.append(
+                    {
+                        "type": "proper-cross",
+                        "edges": ((i, (i + 1) % n), (j, (j + 1) % n)),
+                        "points": (a, b, c, d),
+                        "at": ip,
+                    }
+                )
 
     if problems:
-        print(f"[diagnose] NOT simple. Found {len(problems)} issue(s). Show up to first 10:")
+        print(f"[diagnose] NOT simple. Found {len(problems)} issue(s). Showing up to first 10:")
         for k, pr in enumerate(problems[:10], 1):
             if pr["type"] == "zero-length-edge":
                 i0, i1 = pr["edge"]
                 a, b = pr["pts"]
-                print(f"  #{k}: zero-length-edge on edge ({i0}->{i1}) with points {a} == {b}")
+                print(f"  #{k}: zero-length edge on ({i0}->{i1}) with points {a} == {b}")
             elif pr["type"] == "touch":
                 (e1, e2) = pr["edges"]
                 a, b, c, d = pr["points"]
-                print(f"  #{k}: touching edges {e1} {a}->{b}  and  {e2} {c}->{d}  [{pr['subtype']}]")
-            else:  # proper-cross
+                print(f"  #{k}: touching edges {e1} {a}->{b} and {e2} {c}->{d}  [{pr['subtype']}]")
+            else:
                 (e1, e2) = pr["edges"]
                 a, b, c, d = pr["points"]
                 ip = pr["at"]
-                print(f"  #{k}: proper-cross between edges {e1} {a}->{b}  and  {e2} {c}->{d}  at {ip}")
+                print(f"  #{k}: proper cross between {e1} {a}->{b} and {e2} {c}->{d} at {ip}")
         if len(problems) > 10:
-            print(f"  ... {len(problems)-10} more")
+            print(f"  ... {len(problems) - 10} more")
         return False
 
     return True
 
-# ---------------- Generator ----------------
-def load_polys_cases( expect_closed: bool = False ) -> List[deque[Point]]:
-    p = Path("params.json")
+
+# ---------------- Load polygons from params.json ----------------
+def load_polys_cases(expect_closed: bool = False) -> List[deque[Point]]:
+    """Load caseA/B/C polygons from params.json into deques.
+
+    Args:
+        expect_closed: If True, require first point == last point and check simplicity.
+
+    Returns:
+        List of three deques of points in the order A, B, C.
+    """
+    p = Path("poly_cases.json")
     with p.open("r", encoding="utf-8") as f:
         cfg = json.load(f)
 
@@ -132,38 +162,40 @@ def load_polys_cases( expect_closed: bool = False ) -> List[deque[Point]]:
         if k not in cfg:
             raise KeyError(f"Missing key in params.json: {k}")
 
-    result = []
+    result: List[deque[Point]] = []
     for k in keys:
         pts = list(map(tuple, cfg[k]))
         if len(pts) < 3:
             raise ValueError(f"{k} has fewer than 3 points: {len(pts)}")
         if expect_closed:
             if pts[0] != pts[-1]:
-                raise ValueError(f"{k} is expected to be a closed polygon but first and last points differ: {pts[0]} vs {pts[-1]}")
-        # 检查自交，只在闭合多边形情形下 meaningful
-        if expect_closed:
+                raise ValueError(
+                    f"{k} is expected to be closed but first and last points differ: {pts[0]} vs {pts[-1]}"
+                )
             if not _is_simple(pts):
-                raise ValueError(f"{k} is not a simple polygon (self-intersecting)")
-        # 即便是折线模式，也可检查是否自交（更严格）
+                raise ValueError(f"{k} is not a simple polygon")
         else:
             if not _is_simple(pts):
-                print(f"Warning: {k} polyline itself is self-intersecting; algorithm may fail")
+                print(f"Warning: {k} polyline is self-intersecting; algorithms may fail")
 
         result.append(deque(pts))
     return result
 
 
+# ---------------- Random polygon generator ----------------
 def generate_ploys(
     sizes: Iterable[int],
     image_size: int,
     retries: int = 2000,
     seed: Optional[int] = None,
 ) -> List[deque[Point]]:
-    """
-    在 image_size×image_size 网格上为每个 n 生成恰好 n 点的 simple polygon（整数坐标）。
-    方向不统一，可为 CW 或 CCW。失败会重试，超过 retries 抛错。
+    """Generate simple polygons with integer coordinates on an image_size×image_size grid.
 
-    可行性检查：image_size >= ceil(sqrt(6*max_n)) + 6，否则直接报错。
+    Each n in `sizes` yields one simple polygon with exactly n distinct vertices.
+    Orientation is not enforced. Retries up to `retries` times per n.
+
+    A feasibility check ensures the grid is large enough:
+        image_size >= ceil(sqrt(6 * max_n)) + 6
     """
     if image_size < 8:
         raise ValueError("image_size too small")
@@ -175,9 +207,7 @@ def generate_ploys(
     max_n = max(sizes)
     min_need = int(math.ceil(math.sqrt(6 * max_n))) + 6
     if image_size < min_need:
-        raise ValueError(
-            f"image_size={image_size} too small for n={max_n}. Use >= {min_need}."
-        )
+        raise ValueError(f"image_size={image_size} too small for n={max_n}. Use >= {min_need}.")
 
     rng = random.Random(seed)
     cx = cy = (image_size - 1) / 2.0
@@ -193,7 +223,7 @@ def generate_ploys(
 
         ok = False
         for _ in range(retries):
-            # 角度排序 + 随机半径（环带内），减少自交概率
+            # angle-sorted points with random radius within an annulus
             angles = sorted(rng.random() * 2.0 * math.pi for _ in range(n))
             pts_f = []
             for th in angles:
@@ -202,17 +232,14 @@ def generate_ploys(
                 y = cy + r * math.sin(th)
                 pts_f.append((x, y))
 
-            # 量化与裁剪
+            # quantize and clamp to grid
             pts = [(int(round(x)), int(round(y))) for (x, y) in pts_f]
             pts = [
-                (
-                    min(max(px, 0), image_size - 1),
-                    min(max(py, 0), image_size - 1),
-                )
+                (min(max(px, 0), image_size - 1), min(max(py, 0), image_size - 1))
                 for (px, py) in pts
             ]
 
-            # 去重，严格保证点数
+            # deduplicate; must keep exactly n points
             seen = set()
             dedup: List[Point] = []
             for p in pts:
@@ -222,7 +249,7 @@ def generate_ploys(
             if len(dedup) != n:
                 continue
 
-            # simple + 非零面积
+            # simple and non-zero area
             if not _is_simple(dedup):
                 continue
             area2 = 0
@@ -239,7 +266,7 @@ def generate_ploys(
 
         if not ok:
             raise RuntimeError(
-                f"Fail to generate simple polygon with n={n} in {retries} retries "
+                f"Failed to generate a simple polygon with n={n} in {retries} retries "
                 f"under image_size={image_size}."
             )
 
