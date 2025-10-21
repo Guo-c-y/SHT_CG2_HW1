@@ -1,26 +1,66 @@
-# code/viz_suite.py
-# 输入：
-#  - render_triptych_from_polys(polys): 三份 simple polygon，可为 points 或 (points, inserted_set) —— 保持不变
-#  - render_triptych_hulls(pairs): 三个 (polygon, hull) 对，专注凸包可视化（黑白灰论文风）
-# 输出：论文风格可视化（每隔 label_every 点标号；白描边；三图等大；副标题在标题下方显示 n 和 orientation）
-# 规则：
-#  - simple polygon：细灰线 + 小灰点，不标号
-#  - convex hull：浅灰填充 + 粗黑边 + 白心黑边顶点，给 hull 顶点编号
-#  - 三图标题分别为：convex hull A / B / C
-
+# code/viz_suite.py — polygons & hulls viewer (self-contained)
 from __future__ import annotations
-from typing import List, Tuple, Sequence, Iterable, Set, Union
+from typing import List, Tuple, Sequence, Deque
+from collections import deque
+import random, math
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
-from pathlib import Path
-import json
-from utils import poly_area_signed, as_points
 
 Point = Tuple[int, int]
 PolyLike = Sequence[Point]
-Item = Union[PolyLike, Tuple[PolyLike, Iterable[Point]]]
 
-# ---------- 样式 ----------
+# ---------------- basic geometry utils ----------------
+def as_points(P: PolyLike | Deque[Point]) -> List[Point]:
+    return list(P)
+
+def poly_area_signed(points: Sequence[Point]) -> float:
+    n = len(points)
+    if n < 3:
+        return 0.0
+    s = 0.0
+    for i in range(n):
+        x1, y1 = points[i]
+        x2, y2 = points[(i + 1) % n]
+        s += x1 * y2 - x2 * y1
+    return 0.5 * s
+
+def _orient(a: Point, b: Point, c: Point) -> int:
+    v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    return 1 if v > 0 else (-1 if v < 0 else 0)
+
+def _on_segment(a: Point, b: Point, p: Point) -> bool:
+    if _orient(a, b, p) != 0:
+        return False
+    return min(a[0], b[0]) <= p[0] <= max(a[0], b[0]) and min(a[1], b[1]) <= p[1] <= max(a[1], b[1])
+
+def _seg_intersect(a: Point, b: Point, c: Point, d: Point) -> bool:
+    o1 = _orient(a, b, c); o2 = _orient(a, b, d)
+    o3 = _orient(c, d, a); o4 = _orient(c, d, b)
+    if o1 != o2 and o3 != o4:
+        return True
+    if o1 == 0 and _on_segment(a, b, c): return True
+    if o2 == 0 and _on_segment(a, b, d): return True
+    if o3 == 0 and _on_segment(c, d, a): return True
+    if o4 == 0 and _on_segment(c, d, b): return True
+    return False
+
+def is_simple(points: Sequence[Point]) -> bool:
+    P = as_points(points); n = len(P)
+    if n < 3: return False
+    for i in range(n):
+        if P[i] == P[(i + 1) % n]:
+            return False
+    for i in range(n):
+        a, b = P[i], P[(i + 1) % n]
+        for j in range(i + 1, n):
+            c, d = P[j], P[(j + 1) % n]
+            if j == i or (j == (i + 1) % n) or (i == 0 and j == n - 1):
+                continue
+            if _seg_intersect(a, b, c, d):
+                return False
+    return True
+
+# ---------------- style ----------------
 def _apply_paper_style():
     plt.rcParams.update({
         "font.family": "serif",
@@ -33,71 +73,25 @@ def _apply_paper_style():
         "figure.dpi": 160,
     })
 
-def _read_label_every(default: int = 1) -> int:
-    """Read label frequency from params.json; fallback to default."""
-    try:
-        cfg_path = Path(__file__).with_name("params.json")
-        with open(cfg_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        v = int(data.get("label_every", default))
-        return max(1, v)
-    except Exception:
-        return default
-
-# ---------- 工具 ----------
+# ---------------- helpers ----------------
 def _summary(points: List[Point]):
     area = poly_area_signed(points)
-    return {"n": len(points), "direction": "CCW" if area > 0 else "CW", "ccw": area > 0}
+    return {"n": len(points), "direction": "CCW" if area > 0 else "CW"}
 
 def _label_vertices(ax, points: List[Point], base_px: int = 4, step: int = 1):
     n = len(points)
-    idxs = list(range(0, n, max(1, step)))
-    if (n-1) not in idxs:
-        idxs.append(n-1)
+    step = max(1, int(step))
+    idxs = list(range(0, n, step))
+    if (n - 1) not in idxs:
+        idxs.append(n - 1)
     peff = [pe.Stroke(linewidth=2.0, foreground="white"), pe.Normal()]
     for i in idxs:
         x, y = points[i]
         ax.annotate(
             str(i), xy=(x, y), xytext=(base_px, base_px),
-            textcoords="offset points",
-            fontsize=6, alpha=0.95, color="black",
+            textcoords="offset points", fontsize=6, color="black",
             ha="left", va="bottom", path_effects=peff, clip_on=True, zorder=9
         )
-
-def _draw_polygon_bg(ax, points_seq: Sequence[Point]):
-    """以次要灰阶风格画被包裹的 simple polygon（不编号）"""
-    P = as_points(points_seq)
-    xs, ys = zip(*P)
-    # 细灰线闭合边
-    ax.plot(list(xs) + [P[0][0]], list(ys) + [P[0][1]],
-            linewidth=0.9, color="#777777", zorder=2)
-    # 小灰点
-    ax.scatter(xs, ys, s=20, color="#777777", zorder=3)
-    return P
-
-def _draw_hull_main(ax, hull_seq: Sequence[Point]):
-    """以主体黑白风格画凸包，并返回点列"""
-    H = as_points(hull_seq)
-    if len(H) == 0:
-        return H
-    hx, hy = zip(*H)
-    # 浅灰填充（闭合）
-    ax.fill(list(hx) + [H[0][0]], list(hy) + [H[0][1]],
-            alpha=0.12, linewidth=0, color="#777777", zorder=1)
-    # 粗黑边（闭合）
-    ax.plot(list(hx) + [H[0][0]], list(hy) + [H[0][1]],
-            linewidth=2.0, color="black", zorder=8)
-    # 顶点：白心黑边
-    ax.scatter(hx, hy, s=56, facecolors='white',
-               edgecolors='black', linewidths=1.6, zorder=9)
-    return H
-
-def _bbox_union(list_of_pointlists: List[List[Point]], pad: float = 5.0):
-    all_x = [x for P in list_of_pointlists for (x, _) in P] or [0.0]
-    all_y = [y for P in list_of_pointlists for (_, y) in P] or [0.0]
-    xmin, xmax = min(all_x)-pad, max(all_x)+pad
-    ymin, ymax = min(all_y)-pad, max(all_y)+pad
-    return xmin, xmax, ymin, ymax
 
 def _subtitle(ax, P: List[Point], title: str):
     meta = _summary(P)
@@ -106,111 +100,169 @@ def _subtitle(ax, P: List[Point], title: str):
             transform=ax.transAxes, fontsize=9, color="black",
             ha="center", va="bottom")
 
-def _finish_axes(ax, xlim, ylim):
-    ax.set_xlim(*xlim)
-    ax.set_ylim(*ylim)
+def _finish_axes(ax, coord_range: int):
+    ax.set_xlim(0, coord_range)
+    ax.set_ylim(0, coord_range)
     ax.set_aspect("equal", adjustable="box")
     ax.grid(False)
 
-# ---------- 保持不变：三幅 simple polygon ----------
-def render_triptych_from_polys(polys: Sequence[Item],
-                               titles: Sequence[str] = ("simple polygon A","simple polygon B","simple polygon C"),
-                               save_path: str | None = None):
-    """
-    polys: 长度为 3 的序列。
-      - 兼容旧用法：每项为 list/tuple/deque of (x,y)
-      - 新用法：每项为 (points, inserted_set) 二元组，inserted_set 中的点将绘制为黑边白心点
-    """
-    if len(polys) != 3:
-        raise ValueError("polys must contain exactly 3 items")
+# ---------------- random simple polygon generator ----------------
+def _rand_unique_points(rng: random.Random, k: int, image_size: int) -> List[Point]:
+    seen, pts = set(), []
+    while len(pts) < k:
+        p = (rng.randrange(0, image_size), rng.randrange(0, image_size))
+        if p not in seen:
+            seen.add(p); pts.append(p)
+    return pts
+
+def _order_by_angle(pts: List[Point]) -> List[Point]:
+    cx = sum(x for x, _ in pts) / len(pts)
+    cy = sum(y for _, y in pts) / len(pts)
+    return sorted(pts, key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+
+def _make_simple_polygon(rng: random.Random, n: int, image_size: int, retries: int) -> Deque[Point]:
+    for _ in range(max(1, retries)):
+        pts = _rand_unique_points(rng, n, image_size)
+        cand = _order_by_angle(pts)
+        if is_simple(cand): return deque(cand)
+        jitter = [(x + rng.randint(-2, 2), y + rng.randint(-2, 2)) for x, y in pts]
+        cand = _order_by_angle(jitter)
+        if is_simple(cand): return deque(cand)
+    return deque(_order_by_angle(_rand_unique_points(rng, n, image_size)))
+
+def build_complexity_test_polys_random_simple(
+    sizes: Sequence[int],
+    image_size: int = 1000,
+    retries: int = 500,
+    seed: int = 1024
+) -> List[Deque[Point]]:
+    rng = random.Random(seed)
+    return [ _make_simple_polygon(rng, max(3, int(n)), image_size, retries) for n in sizes ]
+
+# ---------------- polygon renderer ----------------
+def render_ploys(
+    ploys: Sequence[PolyLike],
+    mark_every: int = 1,
+    coord_range: int = 1000,
+    cols_per_row: int = 3,
+):
+    if not ploys:
+        raise ValueError("ploys is empty")
     _apply_paper_style()
 
-    # 拆解 points 与 inserted
-    pts_list: List[List[Point]] = []
-    ins_list: List[Set[Point]] = []
-    for item in polys:
-        if isinstance(item, tuple) and len(item) == 2:
-            points, inserted_iter = item
-            P = as_points(points)
-            pts_list.append(P)
-            ins_list.append(set(tuple(p) for p in inserted_iter))
-        else:
-            P = as_points(item)  # type: ignore[arg-type]
-            pts_list.append(P)
-            ins_list.append(set())
+    P_list: List[List[Point]] = [as_points(P) for P in ploys]
+    N = len(P_list)
+    ncols = max(1, int(cols_per_row))
+    nrows = (N + ncols - 1) // ncols
 
-    # 统一坐标范围
-    xmin, xmax, ymin, ymax = _bbox_union(pts_list, pad=5)
+    fig_w = 3.6 * ncols + 0.2 * (ncols - 1)
+    fig_h = 3.6 * nrows + 0.2 * (nrows - 1)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(fig_w, fig_h),
+                             sharex=True, sharey=True, constrained_layout=True)
 
-    fig, axes = plt.subplots(1, 3, figsize=(11, 3.8), sharex=True, sharey=True, constrained_layout=True)
-    step_cfg = _read_label_every(default=1)
-    for ax, P, ins, title in zip(axes, pts_list, ins_list, titles):
-        # 线条
-        xs, ys = zip(*P)
-        ax.plot(list(xs) + [P[0][0]], list(ys) + [P[0][1]],
-                linewidth=1.2, color="black", zorder=3)
-        # 点
-        if ins:
-            Pset = set(P)
-            ins_set = set(tuple(p) for p in ins) & Pset
-            base_pts = [p for p in P if p not in ins_set]
-            if base_pts:
-                bx, by = zip(*base_pts)
-                ax.scatter(bx, by, s=36, color="black", zorder=4)
-            if ins_set:
-                sx, sy = zip(*ins_set)
-                ax.scatter(sx, sy, s=64, facecolors='white',
-                           edgecolors='black', linewidths=1.3, zorder=5)
-        else:
-            ax.scatter(xs, ys, s=36, color="black", zorder=4)
+    if N == 1:
+        axes = [[axes]]  # type: ignore
+    elif nrows == 1:
+        axes = [list(axes)]  # type: ignore
+    else:
+        axes = [list(row) for row in axes]  # type: ignore
 
-        _subtitle(ax, P, title)
-        # 顶点编号（simple polygon 模式仍按原逻辑）
-        _label_vertices(ax, P, base_px=4, step=step_cfg)
+    step_cfg = max(1, int(mark_every))
 
-        _finish_axes(ax, (xmin, xmax), (ymin, ymax))
-    if save_path:
-        fig.savefig(save_path, dpi=300)
+    k = 0
+    for r in range(nrows):
+        for c in range(ncols):
+            ax = axes[r][c]
+            if k < N:
+                P = P_list[k]
+                xs, ys = zip(*P)
+                ax.plot(list(xs) + [P[0][0]], list(ys) + [P[0][1]],
+                        linewidth=1.2, color="black", zorder=3)
+                ax.scatter(xs, ys, s=36, color="black", zorder=4)
+                _subtitle(ax, P, f"polygon {k+1}")
+                _label_vertices(ax, P, base_px=4, step=step_cfg)
+                _finish_axes(ax, coord_range)
+            else:
+                ax.axis("off")
+            k += 1
     plt.show()
 
-# ---------- 新增：三图 simple polygon + convex hull（仅凸包编号，黑白灰） ----------
-def render_triptych_hulls(pairs: Sequence[Tuple[PolyLike, Sequence[Point]]],
-                          titles: Sequence[str] = ("convex hull A","convex hull B","convex hull C"),
-                          save_path: str | None = None):
+# ---------------- hulls renderer ----------------
+def render_hulls(
+    hulls: Sequence[PolyLike],
+    polys: Sequence[PolyLike],
+    mark_every_hull: int = 1,
+    mark_every_poly: int = 0,
+    coord_range: int = 1000,
+    cols_per_row: int = 3,
+):
     """
-    pairs: 长度为 3 的序列，每项为 (polygon, hull)
-      - polygon: 原始 simple polygon（仅作为背景辅助，不编号）
-      - hull: 按顺序给出的凸包顶点（将编号）
+    Visualize convex hulls over their polygons.
+    Style matches render_ploys. Hulls are emphasized.
+
+    - hulls, polys: same length and order.
+    - mark_every_hull: label stride on hull vertices (>=1).
+    - mark_every_poly: label stride on polygon vertices; 0 disables labels.
+    - coord_range: axes set to [0, coord_range]^2 for every subplot.
+    - cols_per_row: number of columns per row.
     """
-    if len(pairs) != 3:
-        raise ValueError("pairs must contain exactly 3 (polygon, hull) items")
+    if not hulls or not polys:
+        raise ValueError("hulls and polys must be non-empty")
+    if len(hulls) != len(polys):
+        raise ValueError("length mismatch: hulls vs polys")
+
     _apply_paper_style()
 
-    P_list: List[List[Point]] = []
-    H_list: List[List[Point]] = []
-    for poly, hull in pairs:
-        P_list.append(as_points(poly))
-        H_list.append(as_points(hull))
+    H_list: List[List[Point]] = [as_points(H) for H in hulls]
+    P_list: List[List[Point]] = [as_points(P) for P in polys]
 
-    xmin, xmax, ymin, ymax = _bbox_union(P_list + H_list, pad=5)
-    fig, axes = plt.subplots(1, 3, figsize=(11, 3.8), sharex=True, sharey=True, constrained_layout=True)
+    N = len(H_list)
+    ncols = max(1, int(cols_per_row))
+    nrows = (N + ncols - 1) // ncols
 
-    step_cfg = _read_label_every(default=1)
+    fig_w = 3.6 * ncols + 0.2 * (ncols - 1)
+    fig_h = 3.6 * nrows + 0.2 * (nrows - 1)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(fig_w, fig_h),
+                             sharex=True, sharey=True, constrained_layout=True)
 
-    for ax, P, H, title in zip(axes, P_list, H_list, titles):
-        _draw_polygon_bg(ax, P)           # 背景 simple polygon（细灰，不编号）
-        H_drawn = _draw_hull_main(ax, H)  # 主体凸包（黑白风格）
+    if N == 1:
+        axes = [[axes]]  # type: ignore
+    elif nrows == 1:
+        axes = [list(axes)]  # type: ignore
+    else:
+        axes = [list(row) for row in axes]  # type: ignore
 
-        # 标题与副标题改为基于 hull 的统计；若 hull 为空则退回 polygon
-        base_for_meta = H_drawn if H_drawn else P
-        _subtitle(ax, base_for_meta, title)
+    step_h = max(1, int(mark_every_hull))
+    step_p = max(0, int(mark_every_poly))
 
-        # 仅凸包顶点编号
-        if H_drawn:
-            _label_vertices(ax, H_drawn, base_px=4, step=step_cfg)
+    k = 0
+    for r in range(nrows):
+        for c in range(ncols):
+            ax = axes[r][c]
+            if k < N:
+                P = P_list[k]
+                H = H_list[k]
 
-        _finish_axes(ax, (xmin, xmax), (ymin, ymax))
+                # 1) draw polygon lightly (context)
+                px, py = zip(*P)
+                ax.plot(list(px) + [P[0][0]], list(py) + [P[0][1]],
+                        linewidth=0.9, color="#7f7f7f", zorder=2)
+                ax.scatter(px, py, s=18, color="#7f7f7f", zorder=3)
+                if step_p >= 1:
+                    _label_vertices(ax, P, base_px=3, step=step_p)
 
-    if save_path:
-        fig.savefig(save_path, dpi=300)
+                # 2) draw hull with emphasis: light fill + bold edge + prominent vertices
+                hx, hy = zip(*H)
+                ax.fill(list(hx) + [H[0][0]], list(hy) + [H[0][1]],
+                        facecolor="#d9d9d9", alpha=0.35, edgecolor="none", zorder=4)
+                ax.plot(list(hx) + [H[0][0]], list(hy) + [H[0][1]],
+                        linewidth=1.8, color="black", zorder=5)
+                ax.scatter(hx, hy, s=46, facecolor="white", edgecolor="black", linewidth=1.2, zorder=6)
+
+                _subtitle(ax, H, f"convex hull {k+1}")
+                _label_vertices(ax, H, base_px=4, step=step_h)
+                _finish_axes(ax, coord_range)
+            else:
+                ax.axis("off")
+            k += 1
     plt.show()

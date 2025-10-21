@@ -1,372 +1,246 @@
-# polygon_generate_suite.py — 生成三类 simple polygon，并返回双端队列（deque）
-from __future__ import annotations
-from typing import List, Tuple, Dict, Set
-import json, math, random
 from collections import deque
-
-from utils import (
-    is_simple, poly_area_signed, try_insert
-)
+from typing import List, Tuple, Iterable, Optional
+from importlib import resources
+import json
+import math
+import random
+from collections import deque
+from typing import List, Tuple
+from pathlib import Path
+import json
 
 Point = Tuple[int, int]
 
-# ---------------- 参数与工具 ----------------
-def load_params(path: str = "params.json") -> Dict:
-    """
-    已精简：无 grid_min / grid_max。
-    必需键：
-      seed, epsilon_point, epsilon_len, epsilon_edge, epsilon_area_min, max_retries
-    """
-    with open(path, "r", encoding="utf-8") as f:
-        g = json.load(f)
-    need = ["seed", "epsilon_point", "epsilon_len", "epsilon_edge", "epsilon_area_min", "max_retries"]
-    for k in need:
-        if k not in g:
-            raise KeyError(f"missing key in params.json: {k}")
-    return g
+# ---------------- Geometry utils ----------------
+def _cross(ax: int, ay: int, bx: int, by: int) -> int:
+    return ax * by - ay * bx
 
+def _orient(a: Point, b: Point, c: Point) -> int:
+    return _cross(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1])
 
-def _randi(rng: random.Random, lo: int, hi: int) -> int:
-    return rng.randint(lo, hi)
-
-
-def _scaffold_simple_polygon(rng: random.Random, cfg: Dict, k_lo: int, k_hi: int) -> List[Point]:
-    """
-    随机散点按极角排序，直到 simple 且面积达阈值。
-    失败提供诊断信息。
-    """
-    last = {"k": None, "simple": None, "area": None}
-    for _ in range(cfg["max_retries"]):
-        k = _randi(rng, k_lo, k_hi)
-        cx, cy = _randi(rng, 30, 70), _randi(rng, 30, 70)
-        pts = set()
-        while len(pts) < k:
-            pts.add((_randi(rng, 20, 80), _randi(rng, 20, 80)))
-        P = sorted(list(pts), key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
-        ok_simple = is_simple(P)
-        area = abs(poly_area_signed(P))
-        last.update({"k": k, "simple": ok_simple, "area": area})
-        if ok_simple and area >= cfg["epsilon_area_min"]:
-            return P
-    raise RuntimeError(
-        "scaffold fail: "
-        f"retries={cfg['max_retries']}, k_range=[{k_lo},{k_hi}], "
-        f"area_min={cfg['epsilon_area_min']}. "
-        f"last_try: k={last['k']}, simple={last['simple']}, area={last['area']:.3f}"
+def _on_seg(a: Point, b: Point, c: Point) -> bool:
+    return (
+        min(a[0], b[0]) <= c[0] <= max(a[0], b[0])
+        and min(a[1], b[1]) <= c[1] <= max(a[1], b[1])
     )
 
+def _proper_intersect(a: Point, b: Point, c: Point, d: Point) -> bool:
+    o1 = _orient(a, b, c)
+    o2 = _orient(a, b, d)
+    o3 = _orient(c, d, a)
+    o4 = _orient(c, d, b)
+    if o1 == 0 and _on_seg(a, b, c): return True
+    if o2 == 0 and _on_seg(a, b, d): return True
+    if o3 == 0 and _on_seg(c, d, a): return True
+    if o4 == 0 and _on_seg(c, d, b): return True
+    return (o1 > 0) != (o2 > 0) and (o3 > 0) != (o4 > 0)
 
-# --------- 生成过程标记：区分脚手架点 vs 后续插入点（可视化空心/实心） ---------
-class GenContext:
-    def __init__(self) -> None:
-        self.scaffold_points: Set[Point] = set()
-        self.inserted_points: Set[Point] = set()
+# ---- 新增：计算两线段的交点（仅用于诊断输出；平行或重合返回 None）----
+def _segment_intersection_point(a: Point, b: Point, c: Point, d: Point):
+    x1, y1 = a; x2, y2 = b; x3, y3 = c; x4, y4 = d
+    den = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4)
+    if den == 0:
+        return None
+    # 使用浮点以便诊断
+    px = ((x1*y2 - y1*x2)*(x3-x4) - (x1-x2)*(x3*y4 - y3*x4)) / den
+    py = ((x1*y2 - y1*x2)*(y3-y4) - (y1-y2)*(x3*y4 - y3*x4)) / den
+    return (float(px), float(py))
 
-    def mark_scaffold(self, pts: List[Point]) -> None:
-        self.scaffold_points = set(pts)
+# ---- 修改：保持签名与返回值不变；发现问题时打印详细诊断 ----
+def _is_simple(poly: List[Point]) -> bool:
+    n = len(poly)
+    if n < 3:
+        print(f"[diagnose] polygon has <3 points (n={n}).")
+        return False
 
-    def mark_inserted(self, q: Point) -> None:
-        if q not in self.scaffold_points:
-            self.inserted_points.add(q)
+    problems = []
+    for i in range(n):
+        a, b = poly[i], poly[(i + 1) % n]
+        # 零长度边诊断
+        if a == b:
+            problems.append({
+                "type": "zero-length-edge",
+                "edge": (i, (i + 1) % n),
+                "pts": (a, b)
+            })
+        for j in range(i + 1, n):
+            # 跳过相邻边与共享端点
+            if j == i or (j + 1) % n == i or (i + 1) % n == j:
+                continue
+            c, d = poly[j], poly[(j + 1) % n]
 
-    def is_inserted(self, q: Point) -> bool:
-        return q in self.inserted_points
+            o1 = _orient(a, b, c)
+            o2 = _orient(a, b, d)
+            o3 = _orient(c, d, a)
+            o4 = _orient(c, d, b)
 
+            touched = None
+            if o1 == 0 and _on_seg(a, b, c): touched = ("touch", "c_on_ab")
+            elif o2 == 0 and _on_seg(a, b, d): touched = ("touch", "d_on_ab")
+            elif o3 == 0 and _on_seg(c, d, a): touched = ("touch", "a_on_cd")
+            elif o4 == 0 and _on_seg(c, d, b): touched = ("touch", "b_on_cd")
 
-# ---------------- 顶层小工具 ----------------
-def unit_int(vx: int, vy: int) -> Tuple[int, int]:
-    """整向量归一为互质整步。"""
-    if vx == 0 and vy == 0:
-        return 0, 0
-    g = max(1, math.gcd(abs(vx), abs(vy)))
-    return vx // g, vy // g
+            if touched:
+                problems.append({
+                    "type": touched[0],
+                    "subtype": touched[1],
+                    "edges": ((i, (i + 1) % n), (j, (j + 1) % n)),
+                    "points": (a, b, c, d),
+                    "at": None  # 端点或在线上，不唯一
+                })
+                continue
 
+            if (o1 > 0) != (o2 > 0) and (o3 > 0) != (o4 > 0):
+                ip = _segment_intersection_point(a, b, c, d)
+                problems.append({
+                    "type": "proper-cross",
+                    "edges": ((i, (i + 1) % n), (j, (j + 1) % n)),
+                    "points": (a, b, c, d),
+                    "at": ip
+                })
 
-def centroid_int(P: List[Point]) -> Tuple[int, int]:
-    """整型质心近似。"""
-    return sum(x for x, _ in P) // len(P), sum(y for _, y in P) // len(P)
+    if problems:
+        print(f"[diagnose] NOT simple. Found {len(problems)} issue(s). Show up to first 10:")
+        for k, pr in enumerate(problems[:10], 1):
+            if pr["type"] == "zero-length-edge":
+                i0, i1 = pr["edge"]
+                a, b = pr["pts"]
+                print(f"  #{k}: zero-length-edge on edge ({i0}->{i1}) with points {a} == {b}")
+            elif pr["type"] == "touch":
+                (e1, e2) = pr["edges"]
+                a, b, c, d = pr["points"]
+                print(f"  #{k}: touching edges {e1} {a}->{b}  and  {e2} {c}->{d}  [{pr['subtype']}]")
+            else:  # proper-cross
+                (e1, e2) = pr["edges"]
+                a, b, c, d = pr["points"]
+                ip = pr["at"]
+                print(f"  #{k}: proper-cross between edges {e1} {a}->{b}  and  {e2} {c}->{d}  at {ip}")
+        if len(problems) > 10:
+            print(f"  ... {len(problems)-10} more")
+        return False
 
+    return True
 
-def try_insert_and_mark_on_edge(P: List[Point], edge_idx: int, q: Point, cfg: Dict, ctx: GenContext) -> bool:
-    ok = try_insert(P, edge_idx, q, cfg["epsilon_len"], cfg["epsilon_point"], cfg["epsilon_edge"])
-    if ok:
-        ctx.mark_inserted(q)
-    return ok
+# ---------------- Generator ----------------
+def load_polys_cases( expect_closed: bool = False ) -> List[deque[Point]]:
+    p = Path("params.json")
+    with p.open("r", encoding="utf-8") as f:
+        cfg = json.load(f)
 
+    keys = ["caseA_points", "caseB_points", "caseC_points"]
+    for k in keys:
+        if k not in cfg:
+            raise KeyError(f"Missing key in params.json: {k}")
 
-def try_insert_anywhere_and_mark(P: List[Point], q: Point, cfg: Dict, ctx: GenContext) -> bool:
-    for i in range(len(P)):
-        if try_insert(P, i, q, cfg["epsilon_len"], cfg["epsilon_point"], cfg["epsilon_edge"]):
-            ctx.mark_inserted(q)
-            return True
-    return False
-
-
-def add_pocket(P: List[Point], rng: random.Random, cfg: Dict, ctx: GenContext) -> bool:
-    """按边中点朝质心方向插 3 点（向心/离心/凹入），三点都成功才算一次口袋。"""
-    tries = 0
-    while tries < cfg["max_retries"]:
-        tries += 1
-        idx = _randi(rng, 0, len(P) - 1)
-        a, b = P[idx], P[(idx + 1) % len(P)]
-        gx, gy = centroid_int(P)
-        mx, my = (a[0] + b[0]) // 2, (a[1] + b[1]) // 2
-        vx, vy = unit_int(gx - mx, gy - my)
-        if vx == 0 and vy == 0:
-            continue
-        h1 = (mx + vx, my + vy)           # 向心
-        h2 = (mx - vx, my - vy)           # 离心
-        rdepth = _randi(rng, 2, 5)
-        r = (mx + rdepth * vx, my + rdepth * vy)   # 凹入
-        ok1 = try_insert_and_mark_on_edge(P, idx, h1, cfg, ctx)
-        ok2 = try_insert_anywhere_and_mark(P, h2, cfg, ctx)
-        ok3 = try_insert_anywhere_and_mark(P, r, cfg, ctx)
-        if ok1 and ok2 and ok3:
-            return True
-    return False
-
-
-def _synthesize_collinear_edge(P: List[Point], rng: random.Random, cnum: int, cfg: Dict, ctx: GenContext) -> bool:
-    """
-    人工构造一条水平或垂直的长边，使其内部整点 >= cnum：
-      1) 选原始边 (j,j+1)，在其位置先插入 p1，再在其后插入 p2，使 p1-p2 成为相邻顶点。
-      2) 在 (p1,p2) 之间的格点补入 cnum 个点。
-    全过程若任一步失败则重试。
-    """
-    for _ in range(cfg["max_retries"]):
-        P_try = P[:]
-        j = _randi(rng, 0, len(P_try) - 1)
-        a, b = P_try[j], P_try[(j + 1) % len(P_try)]
-        mx, my = (a[0] + b[0]) // 2, (a[1] + b[1]) // 2
-
-        horiz = rng.random() < 0.5
-        span = cnum + 2  # g = span, 内部 = span-1 >= cnum
-        if horiz:
-            y = max(20, min(80, my))
-            x1 = max(20, min(80 - span, mx - span // 2))
-            x2 = x1 + span
-            p1, p2 = (x1, y), (x2, y)
-            targets = [(x1 + t, y) for t in range(1, span)]
+    result = []
+    for k in keys:
+        pts = list(map(tuple, cfg[k]))
+        if len(pts) < 3:
+            raise ValueError(f"{k} has fewer than 3 points: {len(pts)}")
+        if expect_closed:
+            if pts[0] != pts[-1]:
+                raise ValueError(f"{k} is expected to be a closed polygon but first and last points differ: {pts[0]} vs {pts[-1]}")
+        # 检查自交，只在闭合多边形情形下 meaningful
+        if expect_closed:
+            if not _is_simple(pts):
+                raise ValueError(f"{k} is not a simple polygon (self-intersecting)")
+        # 即便是折线模式，也可检查是否自交（更严格）
         else:
-            x = max(20, min(80, mx))
-            y1 = max(20, min(80 - span, my - span // 2))
-            y2 = y1 + span
-            p1, p2 = (x, y1), (x, y2)
-            targets = [(x, y1 + t) for t in range(1, span)]
+            if not _is_simple(pts):
+                print(f"Warning: {k} polyline itself is self-intersecting; algorithm may fail")
 
-        # 插入 p1、p2，形成新边 (p1,p2)
-        if not try_insert(P_try, j, p1, cfg["epsilon_len"], cfg["epsilon_point"], cfg["epsilon_edge"]):
-            continue
-        if not try_insert(P_try, j + 1, p2, cfg["epsilon_len"], cfg["epsilon_point"], cfg["epsilon_edge"]):
-            continue
-
-        # 在新边之间补 cnum 个格点（从 p1 后开始）
-        placed = 0
-        insert_idx = j + 1
-        added_points: List[Point] = [p1, p2]
-        for q in targets:
-            if placed >= cnum:
-                break
-            if try_insert(P_try, insert_idx, q, cfg["epsilon_len"], cfg["epsilon_point"], cfg["epsilon_edge"]):
-                added_points.append(q)
-                insert_idx += 1
-                placed += 1
-
-        if placed >= cnum and is_simple(P_try):
-            # 提交
-            P[:] = P_try
-            for q in added_points:
-                if q not in ctx.scaffold_points:
-                    ctx.mark_inserted(q)
-            return True
-    return False
+        result.append(deque(pts))
+    return result
 
 
-# ---------------- A: 人工长边保证“多重共线”；其余保持 ----------------
-def generate_A(cfg: Dict, ctx: GenContext) -> deque:
-    rng = random.Random(cfg["seed"] + 101)
+def generate_ploys(
+    sizes: Iterable[int],
+    image_size: int,
+    retries: int = 2000,
+    seed: Optional[int] = None,
+) -> List[deque[Point]]:
+    """
+    在 image_size×image_size 网格上为每个 n 生成恰好 n 点的 simple polygon（整数坐标）。
+    方向不统一，可为 CW 或 CCW。失败会重试，超过 retries 抛错。
 
-    P = _scaffold_simple_polygon(rng, cfg, 5, 8)
-    ctx.mark_scaffold(P)
+    可行性检查：image_size >= ceil(sqrt(6*max_n)) + 6，否则直接报错。
+    """
+    if image_size < 8:
+        raise ValueError("image_size too small")
 
-    # 仅保留：人工合成一条水平/垂直长边，再补 cnum 个共线点
-    cnum = 2 if len(P) >= 6 else 3
-    ok = _synthesize_collinear_edge(P, rng, cnum, cfg, ctx)
-    if not ok:
-        raise RuntimeError("A: collinear synthesis fail")
+    sizes = list(sizes)
+    if not sizes:
+        return []
 
-    # 近接触：边中点 10×10 方框随机点，任意边插入一次即止
-    for _ in range(10):
-        j = _randi(rng, 0, len(P) - 1)
-        a, b = P[j], P[(j + 1) % len(P)]
-        mx, my = (a[0] + b[0]) // 2, (a[1] + b[1]) // 2
-        px, py = _randi(rng, mx - 10, mx + 10), _randi(rng, my - 10, my + 10)
-        if try_insert_anywhere_and_mark(P, (px, py), cfg, ctx):
+    max_n = max(sizes)
+    min_need = int(math.ceil(math.sqrt(6 * max_n))) + 6
+    if image_size < min_need:
+        raise ValueError(
+            f"image_size={image_size} too small for n={max_n}. Use >= {min_need}."
+        )
+
+    rng = random.Random(seed)
+    cx = cy = (image_size - 1) / 2.0
+    margin = 3.0
+    R_out = (image_size - 1) / 2.0 - margin
+    R_in = max(R_out * 0.55, 6.0)
+
+    out_polys: List[deque[Point]] = []
+
+    for n in sizes:
+        if n < 3:
+            raise ValueError(f"n must be >= 3, got {n}")
+
+        ok = False
+        for _ in range(retries):
+            # 角度排序 + 随机半径（环带内），减少自交概率
+            angles = sorted(rng.random() * 2.0 * math.pi for _ in range(n))
+            pts_f = []
+            for th in angles:
+                r = R_in + (R_out - R_in) * (0.35 + 0.65 * rng.random())
+                x = cx + r * math.cos(th)
+                y = cy + r * math.sin(th)
+                pts_f.append((x, y))
+
+            # 量化与裁剪
+            pts = [(int(round(x)), int(round(y))) for (x, y) in pts_f]
+            pts = [
+                (
+                    min(max(px, 0), image_size - 1),
+                    min(max(py, 0), image_size - 1),
+                )
+                for (px, py) in pts
+            ]
+
+            # 去重，严格保证点数
+            seen = set()
+            dedup: List[Point] = []
+            for p in pts:
+                if p not in seen:
+                    seen.add(p)
+                    dedup.append(p)
+            if len(dedup) != n:
+                continue
+
+            # simple + 非零面积
+            if not _is_simple(dedup):
+                continue
+            area2 = 0
+            for i in range(n):
+                x1, y1 = dedup[i]
+                x2, y2 = dedup[(i + 1) % n]
+                area2 += x1 * y2 - x2 * y1
+            if area2 == 0:
+                continue
+
+            out_polys.append(deque(dedup))
+            ok = True
             break
 
-    # 近共线：沿外法线偏 1 格
-    j = _randi(rng, 0, len(P) - 1)
-    a, b = P[j], P[(j + 1) % len(P)]
-    dx, dy = b[0] - a[0], b[1] - a[1]
-    nx, ny = unit_int(-dy, dx)
-    if nx or ny:
-        tnum, tden = _randi(rng, 1, 3), _randi(rng, 4, 6)
-        qx = a[0] + round(dx * tnum / tden) + nx
-        qy = a[1] + round(dy * tnum / tden) + ny
-        try_insert_anywhere_and_mark(P, (int(qx), int(qy)), cfg, ctx)
+        if not ok:
+            raise RuntimeError(
+                f"Fail to generate simple polygon with n={n} in {retries} retries "
+                f"under image_size={image_size}."
+            )
 
-    # 近退化：边中点附近 ±1 扰动插 1–2 点
-    added, tries = 0, 0
-    while added < 2 and tries < cfg["max_retries"]:
-        tries += 1
-        i = _randi(rng, 0, len(P) - 1)
-        a, b = P[i], P[(i + 1) % len(P)]
-        mx, my = (a[0] + b[0]) // 2, (a[1] + b[1]) // 2
-        px, py = mx + _randi(rng, -1, 1), my + _randi(rng, -1, 1)
-        if try_insert_and_mark_on_edge(P, i, (px, py), cfg, ctx):
-            added += 1
-
-    # 强制 A 为 CW
-    if poly_area_signed(P) > 0:
-        P.reverse()
-
-    return deque(P)
-
-
-# ---------------- B: 两个口袋 + 随机补点 ----------------
-def generate_B(cfg: Dict, ctx: GenContext) -> deque:
-    rng = random.Random(cfg["seed"] + 202)
-
-    P = _scaffold_simple_polygon(rng, cfg, 6, 9)
-    ctx.mark_scaffold(P)
-
-    if not add_pocket(P, rng, cfg, ctx):
-        raise RuntimeError("B: pocket1 fail")
-    if not add_pocket(P, rng, cfg, ctx):
-        raise RuntimeError("B: pocket2 fail")
-
-    target = _randi(rng, 2, 6)
-    added, tries = 0, 0
-    while added < target and tries < cfg["max_retries"]:
-        tries += 1
-        p = (_randi(rng, 20, 80), _randi(rng, 20, 80))
-        if try_insert_anywhere_and_mark(P, p, cfg, ctx):
-            added += 1
-
-    return deque(P)
-
-
-# ---------------- C: 内部走廊 + 稀疏外扩 ----------------
-def generate_C(cfg: Dict, ctx: GenContext) -> deque:
-    rng = random.Random(cfg["seed"] + 303)
-
-    P = _scaffold_simple_polygon(rng, cfg, 5, 7)
-    ctx.mark_scaffold(P)
-
-    # 内部走廊：沿切向微移后按质心方向内偏
-    for _ in range(_randi(rng, 2, 3)):
-        idx = _randi(rng, 0, len(P) - 1)
-        a, b = P[idx], P[(idx + 1) % len(P)]
-        gx, gy = sum(x for x, _ in P) / len(P), sum(y for _, y in P) / len(P)
-        mx, my = (a[0] + b[0]) // 2, (a[1] + b[1]) // 2
-        vx, vy = unit_int(int(gx - mx), int(gy - my))
-        if vx == 0 and vy == 0:
-            continue
-        inset = _randi(rng, 2, 6)
-        kcorr = _randi(rng, 2, 5)
-        tries = 0
-        added = 0
-        while added < kcorr and tries < cfg["max_retries"]:
-            tries += 1
-            t = _randi(rng, -3, 3)
-            step = max(1, abs(b[0] - a[0]) + abs(b[1] - a[1]))
-            px = mx + t * (b[0] - a[0]) // step
-            py = my + t * (b[1] - a[1]) // step
-            q = (int(px + inset * vx), int(py + inset * vy))
-            if try_insert_anywhere_and_mark(P, q, cfg, ctx):
-                added += 1
-
-    # 稀疏外扩：沿法线外推 6–14
-    for _ in range(_randi(rng, 2, 3)):
-        i = _randi(rng, 0, len(P) - 1)
-        a, b = P[i], P[(i + 1) % len(P)]
-        dx, dy = b[0] - a[0], b[1] - a[1]
-        fx, fy = unit_int(dy, -dx) if rng.random() < 0.5 else unit_int(-dy, dx)
-        if fx == 0 and fy == 0:
-            continue
-        r = _randi(rng, 6, 14)
-        q = (a[0] + fx * r, a[1] + fy * r)
-        try_insert_anywhere_and_mark(P, q, cfg, ctx)
-
-    return deque(P)
-
-
-# ---------------- 统一入口 ----------------
-def generate_with_marks(which: str, params_path: str = "params.json") -> Tuple[deque, Set[Point]]:
-    """
-    扩展：返回 (points_deque, inserted_points_set)。
-    inserted_points_set 为空心黑点，其余为实心黑点。
-    """
-    cfg = load_params(params_path)
-    ctx = GenContext()
-    w = which.upper()
-    if w == "A":
-        pts = generate_A(cfg, ctx)
-    elif w == "B":
-        pts = generate_B(cfg, ctx)
-    elif w == "C":
-        pts = generate_C(cfg, ctx)
-    else:
-        raise ValueError("which must be 'A'|'B'|'C'")
-    return pts, ctx.inserted_points
-
-# ---------------- 仅 simple 约束的生成器（复杂度测试） ----------------
-def _scaffold_simple_only(rng: random.Random, n: int, max_retries: int) -> List[Point]:
-    """
-    仅保证 simple：随机散点 → 以质心极角排序 → 检查 simple，失败重试。
-    不设面积阈值，不依赖 params.json 的 epsilon_area_min。
-    """
-    for _ in range(max_retries):
-        # 取整数格点，避免重复
-        cx, cy = rng.randint(30, 70), rng.randint(30, 70)
-        pts = set()
-        # 在 20..80 的 61×61 网格中采样，足以容纳 n=1000
-        while len(pts) < n:
-            pts.add((rng.randint(20, 80), rng.randint(20, 80)))
-        P = list(pts)
-
-        # 以质心为参考做极角排序
-        gx = sum(x for x, _ in P) / n
-        gy = sum(y for _, y in P) / n
-        P.sort(key=lambda p: math.atan2(p[1] - gy, p[0] - gx))
-
-        if is_simple(P):
-            return P
-    raise RuntimeError(f"simple-only scaffold fail: retries={max_retries}, n={n}")
-
-
-def generate_simple_only(n: int, params_path: str = "params.json") -> deque:
-    """
-    复杂度测试用：生成 n 点 simple polygon（仅 simple 约束）。
-    返回 deque(points)，不区分脚手架/插入点。
-    """
-    cfg = load_params(params_path)
-    # 与现有 A/B/C 的种子相互独立，避免干扰
-    seed_offset = {10: 10001, 100: 10002, 1000: 10003}.get(n, 19997)
-    rng = random.Random(cfg["seed"] + seed_offset)
-    P = _scaffold_simple_only(rng, n, max_retries=cfg["max_retries"])
-    # 方向不强制，若需要 CCW 可按需翻转：
-    # if poly_area_signed(P) < 0: P.reverse()
-    return deque(P)
-
-
-def generate_complexity_cases(params_path: str = "params.json"):
-    """
-    一键得到三组规模：10、100、1000。
-    返回 dict: {10: deque, 100: deque, 1000: deque}
-    """
-    return {
-        10: generate_simple_only(10, params_path),
-        100: generate_simple_only(100, params_path),
-        1000: generate_simple_only(1000, params_path),
-    }
+    return out_polys
