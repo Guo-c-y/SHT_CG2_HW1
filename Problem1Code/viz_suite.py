@@ -243,7 +243,7 @@ def render_ploys(
                     zorder=3,
                 )
                 ax.scatter(xs, ys, s=36, color="black", zorder=4)
-                _subtitle(ax, P, f"polygon {k + 1}")
+                _subtitle(ax, P, f"Case {k + 1}")
                 _label_vertices(ax, P, base_px=4, step=step_cfg)
                 _finish_axes(ax, coord_range)
             else:
