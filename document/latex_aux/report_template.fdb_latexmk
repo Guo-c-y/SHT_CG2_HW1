@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1761157364.42084 "/Users/guocy/Desktop/classes/CG2/HW/CG2_HW1/document/report_template.tex" "report_template.pdf" "report_template" 1761157371.49374 0
-  "/Users/guocy/Desktop/classes/CG2/HW/CG2_HW1/document/report_template.tex" 1761157368.7473 51861 0c8daf7202e3a786f1c85953faac4baf ""
+["pdflatex"] 1761163027.7684 "/Users/guocy/Desktop/classes/CG2/HW/CG2_HW1/document/report_template.tex" "report_template.pdf" "report_template" 1761163031.23872 0
+  "/Users/guocy/Desktop/classes/CG2/HW/CG2_HW1/document/report_template.tex" 1761163024.1934 48327 6c855cbc3ab46ad265bedd672e32ceca ""
   "/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1136768653 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -8,7 +8,6 @@
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmb7t.tfm" 1136768653 2172 fd0c924230362ff848a33632ed45dc23 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmb8r.tfm" 1136768653 4524 6bce29db5bc272ba5f332261583fee9c ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmr7t.tfm" 1136768653 2124 2601a75482e9426d33db523edf23570a ""
-  "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmr8c.tfm" 1136768653 1352 fa28a7e6d323c65ce7d13d5342ff6be2 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmr8r.tfm" 1136768653 4408 25b74d011a4c66b7f212c0cc3c90061b ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmrc7t.tfm" 1136768653 2680 312a2d12b1f1df8ee0212e7ba1962402 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmri7t.tfm" 1136768653 2288 f478fc8fed18759effb59f3dad7f3084 ""
@@ -47,7 +46,6 @@
   "/usr/local/texlive/2025/texmf-dist/fonts/vf/adobe/courier/pcrr7t.vf" 1136768653 1344 6ff472164bf9de0fb2e864b28ac156d9 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/vf/adobe/times/ptmb7t.vf" 1136768653 1372 788387fea833ef5963f4c5bffe33eb89 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/vf/adobe/times/ptmr7t.vf" 1136768653 1380 0ea3a3370054be6da6acd929ec569f06 ""
-  "/usr/local/texlive/2025/texmf-dist/fonts/vf/adobe/times/ptmr8c.vf" 1136768653 3556 8a9a6dcbcd146ef985683f677f4758a6 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/vf/adobe/times/ptmrc7t.vf" 1136768653 1948 7330aeef3af211edff3b35fb2c12a0fd ""
   "/usr/local/texlive/2025/texmf-dist/fonts/vf/adobe/times/ptmri7t.vf" 1136768653 1384 a9d8adaf491ce34e5fba99dc7bbe5f39 ""
   "/usr/local/texlive/2025/texmf-dist/tex/context/base/mkii/supp-pdf.mkii" 1461363279 71627 94eb9990bed73c364d7f53f960cc8c5b ""
@@ -121,7 +119,6 @@
   "/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/ot1pcr.fd" 1137110629 985 1ed784d7bfe47179f3550d2303b073f8 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/ot1ptm.fd" 1137110629 961 15056f4a61917ceed3a44e4ac11fcc52 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/times.sty" 1586716065 856 8e0e5c8cca7b18e0400f97f5a2b90a99 ""
-  "/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/ts1ptm.fd" 1137110629 619 96f56dc5d1ef1fe1121f1cfeec70ee0c ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/refcount/refcount.sty" 1576624809 9878 9e94e8fa600d95f9c7731bb21dfb67a4 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty" 1657483315 9714 ba3194bd52c8499b3f1e3eb91d409670 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/subfigure/subfigure.cfg" 1167176009 2062 a0e7d66e09e508f51289a656aec06ed2 ""
@@ -147,9 +144,9 @@
   "Pictures/test_polygon_cases.png" 1761137040.0072 298445 0af417700edf9022b0613f4fa99d320e ""
   "Pictures/test_sites1.png" 1761156693.11375 402046 c0541cf4d208ea108518366400a44baf ""
   "Pictures/test_sites2.png" 1761156968.84211 1077301 f4eed8107442e11c2a25d9cf36ef256f ""
-  "latex_aux/report_template.aux" 1761157371.39351 11271 e2f5caf0f5edfeb2473e9ef6880232b5 "pdflatex"
-  "latex_aux/report_template.out" 1761157371.39489 735 c775ec05bd40c35388db11f8aa34458c "pdflatex"
-  "report_template.tex" 1761157368.7473 51861 0c8daf7202e3a786f1c85953faac4baf ""
+  "latex_aux/report_template.aux" 1761163031.18696 9514 ffed552db2edf4909df627306a31853d "pdflatex"
+  "latex_aux/report_template.out" 1761163031.1877 734 74040b7d650bd7227809d4d7232f38e1 "pdflatex"
+  "report_template.tex" 1761163024.1934 48327 6c855cbc3ab46ad265bedd672e32ceca ""
   (generated)
   "latex_aux/report_template.aux"
   "latex_aux/report_template.log"

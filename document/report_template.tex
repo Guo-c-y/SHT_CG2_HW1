@@ -90,6 +90,7 @@
 \end{enumerate}
 
 \newpage
+
 \problem{Melkman's Algorithm for Simple Polygon Convex Hull}
 
 Implement Melkman's algorithm to compute the convex hull of a simple polygon in $\mathcal{O}(n)$ time complexity.\bigskip
@@ -106,109 +107,112 @@ Implement Melkman's algorithm to compute the convex hull of a simple polygon in 
 
 \newpage
 
-\subsection*{1. Problem Definition and Notation}
+\newcounter{Psec}\setcounter{Psec}{0}
+\newcounter{Psubsec}[Psec]\setcounter{Psubsec}{0}
+\newcommand{\psec}[1]{\refstepcounter{Psec}\vspace{0.6ex}\noindent\textbf{\thePsec.\ #1}\par\vspace{0.2ex}}
+\newcommand{\psubsec}[1]{\refstepcounter{Psubsec}\vspace{0.4ex}\noindent\textbf{\thePsec.\thePsubsec\ #1}\par\vspace{0.15ex}}
 
-\textbf{Simple polygon:} A simple polygon is a two-dimensional planar shape formed by connecting a finite sequence of distinct vertices in order and closing the loop. Adjacent edges meet only at their shared endpoints, and no non-adjacent edges intersect. This guarantees a single, connected, and non-self-intersecting boundary that encloses a finite region in the plane. In this report, we focus exclusively on polygons in the two-dimensional Euclidean space $\mathbb{R}^2$, since Melkman’s algorithm is specifically designed for 2D convex hull construction.
+\psec{Problem Definition and Notation}
 
-\textbf{Goal:} The goal of Melkman’s algorithm is to compute the convex hull of a simple polygon efficiently in linear time $\mathcal{O}(n)$. 
-Given an ordered vertex sequence representing the boundary of a simple polygon, the algorithm constructs the smallest convex polygon that completely contains it, returning the convex hull vertices in counterclockwise order.
+\textbf{Simple polygon.}  
+A simple polygon is a closed planar chain formed by connecting a finite sequence of distinct vertices in order such that non-adjacent edges do not intersect.  
+It defines a single, non-self-intersecting boundary enclosing a finite region in the two-dimensional Euclidean space $\mathbb{R}^2$.  
+Throughout this work, polygons are assumed to be strictly simple and embedded in $\mathbb{R}^2$, consistent with the scope of Melkman’s convex hull algorithm.
 
-\textbf{Notation:} The input polygon is represented as an ordered vertex sequence $P = (p_0, p_1, \dots, p_{n-1})$, where each vertex $p_i = (x_i, y_i) \in \mathbb{R}^2$. 
-Edges are implicitly defined between consecutive vertices $(p_i, p_{i+1})$ for $i = 0, 1, \dots, n-2$, and the polygon is closed conceptually by connecting $p_{n-1}$ back to $p_0$, without explicitly storing a duplicate vertex in the sequence. 
-The output convex hull is denoted as $H = (h_0, h_1, \dots, h_{m-1})$. 
-To evaluate geometric relations, the orientation of three points $a$, $b$, and $c$ is determined using the signed area function:
+\textbf{Convex hull.}  
+Given a simple polygon $P$, its convex hull $\mathrm{CH}(P)$ is the smallest convex polygon that fully contains $P$.  
+The result produced by Melkman’s algorithm lists the hull vertices in counterclockwise (CCW) order.
+
+\textbf{Remark.}  
+Since the \emph{Input} and \emph{Output} have been formally defined in the problem statement, they are not repeated here.
+
+\textbf{Notation.}  
+The primary symbols used in this report are summarized in Table~\ref{tab:notation1}.
+
+\begin{table}[H]
+\centering
+\caption{Notation used in Problem~1.}
+\label{tab:notation1}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{p{5.0cm} p{8.3cm}}
+\hline
+\textbf{Symbol} & \textbf{Description} \\
+\hline
+$P = (p_0, p_1, \dots, p_{n-1})$ & Ordered vertex sequence representing the boundary of a simple polygon. \\[2pt]
+$p_i = (x_i, y_i) \in \mathbb{R}^2$ & Cartesian coordinates of the $i$-th vertex. \\[2pt]
+$H = (h_0, h_1, \dots, h_{m-1})$ & Output convex hull vertices in CCW order. \\[2pt]
+$\text{orient}(a,b,c)$ & Signed area function determining relative orientation of three points: 
 \[
-\text{orient}(a,b,c) = (b_x - a_x)(c_y - a_y) - (b_y - a_y)(c_x - a_x),
+\text{orient}(a,b,c) = (b_x - a_x)(c_y - a_y) - (b_y - a_y)(c_x - a_x)
 \]
-where a positive value means that $c$ lies to the left of the directed edge $ab$, a negative value indicates the right side, and zero denotes collinearity.
+Positive $\Rightarrow$ $c$ lies to the left of $\overrightarrow{ab}$; negative $\Rightarrow$ right side; zero $\Rightarrow$ collinear. \\[6pt]
+$|P| = n,\ |H| = m$ & Number of vertices in the polygon and in its convex hull. \\
+\hline
+\end{tabular}
+\end{table}
 
-\subsection*{2. Data Structures and Algorithmic}
+\psec{Data Structures and Algorithm}
 
-\paragraph{2.1 Data structures}\
+\psubsec{Data Structures}
 
-The input of the algorithm is an ordered list of vertices $P = (p_0, p_1, \dots, p_{n-1})$, where each vertex $p_i = (x_i, y_i) \in \mathbb{R}^2$ defines the boundary of a simple polygon. 
-These vertices are accessed sequentially according to their order in $P$.
+The algorithm takes an ordered vertex sequence 
+\(P = (p_0, p_1, \dots, p_{n-1})\), 
+where each vertex \(p_i = (x_i, y_i) \in \mathbb{R}^2\) defines the polygon boundary and is accessed sequentially.
 
-To maintain the evolving convex hull during the scan, the algorithm employs a double-ended queue $D$, which simultaneously stores the upper and lower hull chains. 
-The front of $D$ corresponds to the starting point of the upper chain, while the back corresponds to the end of the lower chain. 
-Each element of $D$ is a vertex from $P$, and the deque supports constant-time insertion and deletion operations at both ends:
+A double-ended queue \(D\) maintains the evolving convex hull, storing the upper and lower chains simultaneously.  
+Its front represents the head of the upper chain, and its back the tail of the lower chain.  
+Each element of \(D\) is a vertex of \(P\), supporting constant-time insertion and deletion at both ends:
 \[
 D = [d_0, d_1, \dots, d_k], \quad d_i \in P.
 \]
-This structure allows the algorithm to dynamically add or remove vertices when maintaining the left-turn property required for convexity. 
-At the end of the iteration, the vertices remaining in $D$ form the convex hull in counterclockwise order.
+This structure enables dynamic updates that preserve the left-turn property of convexity, and the final contents of \(D\) form the convex hull in counterclockwise order.
 
-\paragraph{2.2 Algorithmic Overview}\
+\psubsec{Algorithmic Overview}
 
-Melkman’s algorithm incrementally constructs the convex hull of a simple polygon in a single linear pass over its ordered vertices. 
-It maintains a double-ended queue $D$ that simultaneously represents the upper and lower chains of the evolving convex hull. 
-Initially, the algorithm identifies the first three non-collinear vertices $(p_0, p_1, p_2)$ and arranges them so that they form a counterclockwise triangle. 
-These three vertices are inserted into the deque with $p_2$ appearing at both ends, establishing the initial convex structure.
-For each subsequent vertex $p_i$ from the polygon, the algorithm tests whether $p_i$ lies inside the current hull defined by $D$. 
-If the point is inside (to the left of both the top and bottom edges), it is skipped. 
-Otherwise, $D$ is updated by removing points from the front and back that would cause the hull to turn right or become non-convex with respect to $p_i$. 
-After pruning, $p_i$ is inserted at both ends, maintaining the counterclockwise convex boundary. 
-This procedure ensures that each vertex is processed exactly once, and each is inserted and removed at most a constant number of times, leading to linear time complexity.
+Melkman’s algorithm computes the convex hull of a simple polygon in one linear scan of its ordered vertices.  
+A double-ended queue \(D\) maintains the current convex boundary, storing the upper and lower chains simultaneously.  
+The first three non-collinear vertices \((p_0,p_1,p_2)\) are oriented counterclockwise to initialize \(D\) with \(p_2\) duplicated at both ends.  
+For each subsequent vertex \(p_i\), the algorithm checks whether \(p_i\) lies inside the existing hull—left of both boundary edges.  
+If so, it is skipped; otherwise, vertices violating convexity are removed from the deque’s ends before inserting \(p_i\) at both sides.  
+Each vertex is processed once and updated a constant number of times, ensuring overall linear-time complexity.
 
 \begin{algorithm}[H]
 \caption{Melkman’s Convex Hull for a Simple Polygon}
 \begin{algorithmic}[1]
-\Require Ordered vertices of a simple polygon $P = (p_0, p_1, \dots, p_{n-1})$
-\Ensure Convex hull vertices $H$ in counterclockwise order
+\Require Ordered vertices \(P=(p_0,p_1,\dots,p_{n-1})\)
+\Ensure Convex hull \(H\) in counterclockwise order
 
-\State Initialize deque $D$ so that $p_0, p_1, p_2$ form a CCW triangle and $p_2$ appears at both ends:
-\If{$\text{orient}(p_0, p_1, p_2) > 0$}
-    \State Append in order: $p_2, p_0, p_1, p_2$
-\Else
-    \State Append in order: $p_2, p_1, p_0, p_2$
+\If{\(\text{orient}(p_0,p_1,p_2)>0\)} 
+    \State \(D\gets[p_2,p_0,p_1,p_2]\)
+\Else 
+    \State \(D\gets[p_2,p_1,p_0,p_2]\)
 \EndIf
 
-\For{$i = k+1$ to $n-1$}
-    \State $p \gets p_i$
-    \State $in\_top \gets \text{is\_left}(D[-2], D[-1], p)$
-    \State $in\_bot \gets \text{is\_left}(D[0], D[1], p)$
-    \If{$in\_top$ \textbf{and} $in\_bot$}
-        \State \textbf{continue} \Comment{$p$ lies inside current hull}
-    \EndIf
-
-    \While{$\text{is\_right\_or\_on}(D[0], D[1], p)$}
-        \State $D.\text{popleft}()$
-    \EndWhile
-    \State $D.\text{appendleft}(p)$
-
-    \While{$\text{is\_right\_or\_on}(D[-2], D[-1], p)$}
-        \State $D.\text{pop}()$
-    \EndWhile
-    \State $D.\text{append}(p)$
+\For{\(i=3\) to \(n-1\)}
+    \State \(p\gets p_i\)
+    \If{\(\text{is\_left}(D[-2],D[-1],p)\)\textbf{ and }\(\text{is\_left}(D[0],D[1],p)\)} \State \textbf{continue} \EndIf
+    \While{\(\text{is\_right\_or\_on}(D[0],D[1],p)\)} \State \(D.\text{popleft}()\) \EndWhile
+    \State \(D.\text{appendleft}(p)\)
+    \While{\(\text{is\_right\_or\_on}(D[-2],D[-1],p)\)} \State \(D.\text{pop}()\) \EndWhile
+    \State \(D.\text{append}(p)\)
 \EndFor
-
-\State $D.\text{pop}()$ \Comment{Remove duplicated endpoint}
-\State $H \gets$ list of vertices in $D$ (CCW order)
-\State \Return $H$
+\State \(D.\text{pop}()\); \Return list of vertices in \(D\) (CCW)
 \end{algorithmic}
 \end{algorithm}
 
-\subsection*{3. Test Case Design}
+\psec{Test Case Design}
 
-\paragraph{3.1 Special cases}\
+\psubsec{Special Cases}
 
-To ensure the robustness and correctness of Melkman’s algorithm, several representative special cases are considered in the test design. 
-First, polygons containing multiple nearly collinear vertices are used to evaluate numerical stability when the orientation value $\text{orient}(a,b,c)$ approaches zero. 
-These cases verify that the algorithm correctly handles degenerate configurations and maintains consistent convexity. 
+To ensure robustness, representative input configurations are identified to capture the main geometric and numerical challenges of convex hull construction.  
+Nearly collinear vertices test orientation stability when \(\text{orient}(a,b,c)\!\approx\!0\), verifying consistent handling of degenerate edges.  
+Concave polygons with pocket structures examine bidirectional deque updates and confirm that convexity is preserved under pruning.  
+Near-contact edges assess numerical tolerance to minimal gaps and floating-point precision.  
+Polygons dense in interior vertices but sparse on the boundary test skip efficiency and validate linear-time behavior.  
+Finally, clockwise-ordered inputs confirm correct orientation detection and consistent counterclockwise hull output.  
+These scenarios collectively define the space of valid yet challenging inputs against which the subsequent test cases are designed.
 
-Second, polygons with concave indentations (pocket structures) are designed to test the deque’s bidirectional update mechanism. 
-Such inputs trigger both front and back popping operations, ensuring that the convex hull update process preserves the counterclockwise convex boundary.
-
-Third, near-contact configurations are introduced, where two non-adjacent edges approach each other closely without intersecting. 
-These cases assess the algorithm’s tolerance to small geometric gaps and verify that floating-point precision errors do not lead to incorrect intersection or collinearity detection.
-
-Fourth, polygons containing many interior points but few exterior ones are used to test the skip logic. 
-Internal points should be efficiently identified and ignored, confirming that the algorithm retains its linear-time complexity $\mathcal{O}(n)$ even for dense inputs.
-
-Finally, inputs with reversed (clockwise) vertex order are included to confirm that the algorithm correctly identifies orientation and still produces a valid counterclockwise convex hull. 
-Together, these cases cover the most critical geometric and numerical challenges that can occur in two-dimensional convex hull computation for simple polygons.
-
-\paragraph{3.2 Case 1: Collinear Band with Near-Degenerate Contact}\
+\psubsec{Case 1: Collinear Band with Near-Degenerate Contact}
 
 \textbf{Objectives and algorithmic checks:}
 \begin{enumerate}
@@ -224,7 +228,7 @@ An upper horizontal band at $y=520$ is formed by a long collinear sequence from 
 Case~1 efficiently combines collinearity, near-degenerate geometry, and near-contact configurations in a single test. 
 It provides a comprehensive stress test for the initialization, inside-test, and deque-update mechanisms of Melkman’s algorithm, confirming both its numerical robustness and geometric consistency.
 
-\paragraph{3.3 Case 2: Dual-Pocket Polygon for Deque Update Validation}\
+\psubsec{Case 2: Dual-Pocket Polygon for Deque Update Validation}
 
 \textbf{Objectives and algorithmic checks:}\
 
@@ -241,7 +245,7 @@ The polygon is designed with two concave pockets—one on each side—to induce 
 Case~2 effectively tests the update logic of Melkman’s algorithm by forcing alternating front and back popping during hull maintenance. 
 It provides clear visual evidence of how the deque dynamically adjusts to restore convexity after processing concave pockets, validating the correctness of the update order, stopping conditions, and overall hull integrity.
 
-\paragraph{3.4 Case 3: Interior-Point Skipping and Sparse Expansion Test}\
+\psubsec{Case 3: Interior-Point Skipping and Sparse Expansion Test}
 
 \textbf{Objectives and algorithmic checks:}\
 
@@ -258,7 +262,7 @@ The polygon is composed of two contrasting regions: a dense interior section and
 Case~3 demonstrates the efficiency of Melkman’s algorithm in distinguishing interior from exterior vertices and preserving its $\mathcal{O}(n)$ time behavior even for highly unbalanced input distributions. 
 It confirms that unnecessary updates are avoided for interior points, while sparse exterior vertices correctly trigger localized deque modifications, maintaining a consistent and minimal convex hull.
 
-\paragraph{3.5 Visual summary and case coverage}\  
+\psubsec{Visual summary and case coverage}
 
 \begin{figure}[H]
     \centering
@@ -278,7 +282,7 @@ Case~3 evaluates performance and correctness in mixed-density inputs, where nume
 Together, these cases comprehensively test Melkman’s algorithm across initialization, inside-testing, and deque-update phases. 
 They confirm that the implementation is robust to collinearity, concavity, and numerical perturbation, while preserving correctness and $\mathcal{O}(n)$ efficiency across all representative polygon configurations.
 
-\subsection*{4. Visualization and Results Analysis}\
+\psec{4. Visualization and Results Analysis}
 
 Following the design principles and definitions described in previous sections, the Melkman convex hull algorithm was implemented and tested on the three representative polygon cases defined in Section~3. 
 The results are shown in Figure~\ref{fig:hulls}, where each subfigure corresponds to one of the test cases: 
@@ -311,9 +315,9 @@ Overall, the visualization results align perfectly with the theoretical expectat
 Melkman’s algorithm demonstrates robustness across numerical edge cases, correctness in deque-based updates. 
 The generated convex hulls exhibit clean, non-intersecting boundaries that accurately enclose the input polygons.
 
-\subsection*{5. Time Complexity Analysis}\
+\psec{Time Complexity Analysis}
 
-\paragraph{5.1 Theoretical}\
+\psubsec{Theoretical}
 
 Melkman’s algorithm achieves linear-time complexity $\mathcal{O}(n)$ with respect to the number of vertices in the input polygon. 
 The efficiency arises from its incremental and deterministic construction process, which guarantees that each vertex is handled a constant number of times. 
@@ -335,7 +339,7 @@ No nested loops dependent on $n$ exist in the algorithm, and no vertex is ever r
 
 Hence, Melkman’s convex hull algorithm is theoretically proven to run in $\mathcal{O}(n)$ time for any simple polygon input, achieving optimal performance for this class of problems.
 
-\paragraph{5.2 Empirical}\
+\psubsec{Empirical}
 
 To validate the theoretical time complexity, an experimental evaluation was conducted using a series of polygons with progressively increasing vertex counts. 
 Nine polygon sets were generated to provide a controlled range of input sizes, ensuring both reproducibility and consistent geometric diversity. 
@@ -379,6 +383,8 @@ The operation breakdown further shows that the majority of computational effort 
 Overall, the empirical data strongly supports the theoretical claim that Melkman’s convex hull algorithm operates in linear time $\mathcal{O}(n)$, achieving both correctness and computational efficiency across varying input sizes.
 
 
+\setcounter{Psec}{0}
+\setcounter{Psubsec}{0}
 \newpage
 \problem{General Voronoi Diagram (Power Diagram Variant)}
 
@@ -395,9 +401,13 @@ Study general Voronoi diagrams and implement one variant of your choice.\bigskip
     \item Test cases with at least three different point configurations.
 \end{enumerate}
 
+% Reuse \psec and \psubsec defined in Problem 1; just reset counters here.
+\setcounter{Psec}{0}
+\setcounter{Psubsec}{0}
+
 \newpage
 
-\subsection*{1. Variant Selection and Motivation}
+\psec{Variant Selection and Motivation}
 
 The variant selected in this study is the \textbf{Power Diagram} (also known as the Laguerre–Voronoi Diagram), due to its strong theoretical and practical relevance to my ongoing research on three-dimensional medical image reconstruction.  
 In 3D ultrasound image segmentation and reconstruction, it is often necessary to partition the space into weighted regions according to the spatial features or importance of different points, in order to generate structurally consistent and geometrically continuous volumetric representations.  
@@ -405,155 +415,130 @@ By introducing additive weights into the distance metric, the Power Diagram allo
 Its convexity and controllability ensure numerical stability in geometric computations, while its formulation naturally extends to three dimensions and connects seamlessly with Delaunay triangulation and regular tessellation methods.  
 Therefore, the Power Diagram provides both a solid theoretical foundation and a practical geometric framework for understanding and implementing weighted spatial partitioning in 3D medical image reconstruction.
 
-\subsection*{2. Problem Definition and Notation}
+\psec{Problem Definition and Notation}
 
 \textbf{Input.}  
 A finite set of weighted sites
 \[
-S=\{(x_i,y_i,w_i)\mid i=1,\dots,n\}\subset\mathbb{R}^2\times\mathbb{R},
+S = \{(x_i, y_i, w_i) \mid i = 1, \dots, n\} \subset \mathbb{R}^2 \times \mathbb{R},
 \]
-where $(x_i,y_i)$ is the location of site $s_i$ and $w_i$ is a scalar weight controlling its influence.
-
-\textbf{Power distance.}  
-For $p=(x,y)\in\mathbb{R}^2$ and $s_i=(x_i,y_i,w_i)$,
-\[
-\phi_i(p)=\|p-s_i\|^2-w_i .
-\]
-This definition yields affine bisectors between any pair of sites.
-
-\textbf{Power cell.}  
-The cell of $s_i$ is
-\[
-V_i=\{p\in\mathbb{R}^2\mid \phi_i(p)\le \phi_j(p),\ \forall j\neq i\},
-\]
-i.e., the intersection of half-planes that favor $s_i$ over every $s_j$.
+where $(x_i, y_i)$ denotes the spatial coordinates of site $s_i$, and $w_i$ is a scalar weight determining its relative influence in the power distance metric.
 
 \textbf{Output.}  
-A per-site list of half-planes encoding the diagram rather than explicit polygon vertices.  
-For each $s_i$,
+A per-site collection of half-planes representing the Power Diagram in implicit form.  
+For each site $s_i$, its region is encoded as
 \[
-\mathcal{H}_i=\{(a_{ij},b_{ij},c_{ij})\mid a_{ij}x+b_{ij}y\le c_{ij},\ j\neq i\},
+\mathcal{H}_i = \{(a_{ij}, b_{ij}, c_{ij}) \mid a_{ij}x + b_{ij}y \le c_{ij},\ j \neq i\},
 \]
-where each triple represents the kept side of the bisector $\phi_i\le\phi_j$.  
-Cells are implicit as $V_i=\bigcap_{H\in\mathcal{H}_i}H$.  
-With \texttt{stats=True}, the procedure returns operation counts and the asymptotic summary $\Theta(n^2)$ for time and space.
+where each triple $(a_{ij}, b_{ij}, c_{ij})$ corresponds to the bisector $\phi_i \le \phi_j$.  
+The explicit polygonal cell is given by
+\[
+V_i = \bigcap_{H \in \mathcal{H}_i} H,
+\]
+and the complete diagram is $\{V_i\}_{i=1}^n$.
+
+\textbf{Power distance and cell definition.}  
+For $p=(x,y)\in\mathbb{R}^2$ and site $s_i=(x_i,y_i,w_i)$, the power distance is defined as
+\[
+\phi_i(p) = \|p - s_i\|^2 - w_i .
+\]
+The \emph{power cell} associated with $s_i$ is
+\[
+V_i = \{p \in \mathbb{R}^2 \mid \phi_i(p) \le \phi_j(p),\ \forall j \ne i\},
+\]
+representing the set of all points closer (in the power sense) to $s_i$ than to any other site.
 
 \textbf{Goal.}  
-Construct the per-site half-plane sets $\{\mathcal{H}_i\}$ for a Power Diagram, visualize resulting cells by clipping over a bounding box when needed, and analyze theoretical and empirical complexity.
+Construct the per-site half-plane sets $\{\mathcal{H}_i\}$ defining the Power Diagram, visualize the resulting cells by clipping against a finite bounding box, and analyze the algorithm’s theoretical and empirical complexity.
 
-\textbf{Notations.}  
-\begin{itemize}
-  \item $s_i=(x_i,y_i,w_i)$: the $i$-th weighted site.
-  \item $\phi_i(p)$: power distance from $p$ to $s_i$.
-  \item $V_i$: implicit cell of $s_i$ given by $\bigcap \mathcal{H}_i$.
-  \item $(a,b,c)$: half-plane coefficients for $ax+by\le c$.
-  \item $B=[x_{\min},y_{\min},x_{\max},y_{\max}]$: rendering/clipping box used only for visualization.
-  \item $H_{ij}$: the half-plane $\{p\mid \phi_i(p)\le \phi_j(p)\}$ contributing one $(a_{ij},b_{ij},c_{ij})$ to $\mathcal{H}_i$.
-\end{itemize}
+\textbf{Notation.}  
+The main mathematical symbols used in this section are summarized in Table~\ref{tab:notation2}.
 
-\subsection*{3. Data Structures and Algorithm}
+\begin{table}[H]
+\centering
+\caption{Notation used in Problem~2.}
+\label{tab:notation2}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{p{5.0cm} p{8.3cm}}
+\hline
+\textbf{Symbol} & \textbf{Description} \\
+\hline
+$S = \{(x_i, y_i, w_i)\}_{i=1}^n$ & Set of $n$ weighted sites in $\mathbb{R}^2$ with scalar weights. \\[2pt]
+$s_i = (x_i, y_i, w_i)$ & The $i$-th weighted site. \\[2pt]
+$\phi_i(p) = \|p - s_i\|^2 - w_i$ & Power distance between point $p$ and site $s_i$. \\[2pt]
+$V_i = \{p \mid \phi_i(p) \le \phi_j(p),\ \forall j \ne i\}$ & Power cell of $s_i$, defined by pairwise inequalities. \\[2pt]
+$\mathcal{H}_i = \{(a_{ij}, b_{ij}, c_{ij}) \mid j \ne i\}$ & Set of half-plane constraints for $V_i$ with coefficients satisfying $a_{ij}x + b_{ij}y \le c_{ij}$. \\[2pt]
+$(a_{ij}, b_{ij}, c_{ij})$ & Coefficients of the affine bisector between $s_i$ and $s_j$. \\[2pt]
+$B = [x_{\min}, y_{\min}, x_{\max}, y_{\max}]$ & Bounding box for visualization or clipping. \\[2pt]
+$H_{ij}$ & Half-plane $\{p \mid \phi_i(p) \le \phi_j(p)\}$ contributing one $(a_{ij}, b_{ij}, c_{ij})$ to $\mathcal{H}_i$. \\[2pt]
+$T(n), M(n)$ & Asymptotic time and space complexities of the Power Diagram construction. \\
+\hline
+\end{tabular}
+\end{table}
 
-\paragraph{3.1 Data Structures}\
+\psubsec{Data Structures}
 
-\begin{itemize}
-    \item \textbf{Site list:}  
-    A sequential array \texttt{sites\_in[i] = (x, y, w)} storing the integer coordinates and weights of all input sites.  
-    Each element corresponds to a weighted site $s_i = (x_i, y_i, w_i)$ used to generate one power cell.
-
-    \item \textbf{Half-plane representation:}  
-    For every ordered pair of distinct sites $(s_i, s_j)$, the bisector of the power distance equation $\phi_i(p)=\phi_j(p)$
-    can be written as a linear inequality
-    \[
-    a_{ij}x + b_{ij}y \le c_{ij},
-    \]
-    where 
-    \[
-    a_{ij} = 2(x_j - x_i), \quad
-    b_{ij} = 2(y_j - y_i), \quad
-    c_{ij} = (x_j^2 + y_j^2) - (x_i^2 + y_i^2) + (w_i - w_j).
-    \]
-    Each tuple $(a,b,c)$ is stored as a \texttt{HalfPlane} record satisfying the form \texttt{ax + by <= c}.  
-    All half-planes associated with one site are grouped as
-    \[
-    \mathcal{H}_i = \{(a_{ij}, b_{ij}, c_{ij}) \mid j \ne i\},
-    \]
-    representing the complete intersection that defines $V_i$.
-
-    \item \textbf{Per-site region list:}  
-    A list of lists \texttt{power\_regions[i]} that stores $\mathcal{H}_i$ for each site.  
-    This structure provides constant-time access to all bounding half-planes of any cell and supports later polygon reconstruction through half-plane clipping.
-
-    \end{itemize}
-
-\paragraph{3.2 Algorithmic Overview}\
-
-The procedure constructs the Power Diagram by enumerating all ordered site pairs, deriving the affine half-planes that favor each site, and grouping these half-planes per site. Given a weighted set \(S=\{(x_i,y_i,w_i)\}_{i=1}^n\) with \(n\ge 2\), the algorithm initializes an empty container for each site’s constraints \(\mathcal H_i\). For every \(j\neq i\), it computes the coefficients of the bisector \(\phi_i(p)\le \phi_j(p)\) in the linear form \(a_{ij}x+b_{ij}y\le c_{ij}\) using
+The input is a sequential site array \(S=\{s_i\}_{i=1}^n\) with
+\(s_i=(x_i,y_i,w_i)\in\mathbb{R}^2\times\mathbb{R}\).
+For each ordered pair \((s_i,s_j)\), the power-bisector
+\(\phi_i(p)=\phi_j(p)\) is stored as a linear half-plane
 \[
-a_{ij}=2(x_j-x_i),\qquad
-b_{ij}=2(y_j-y_i),\qquad
+a_{ij}x + b_{ij}y \le c_{ij},\qquad
+a_{ij}=2(x_j-x_i),\quad
+b_{ij}=2(y_j-y_i),\quad
 c_{ij}=(x_j^2+y_j^2)-(x_i^2+y_i^2)+(w_i-w_j).
 \]
-The triple \((a_{ij},b_{ij},c_{ij})\) is appended to \(\mathcal H_i\). After processing all pairs, the output is the collection \(\{\mathcal H_i\}_{i=1}^n\). Polygonal cells \(V_i\) can be recovered later by clipping \(\bigcap_{H\in\mathcal H_i}H\) against a rendering bounding box. 
-\begin{algorithm}[H]
-\caption{BUILD\_POWER\_CELLS}
-\begin{algorithmic}[1]
-\Require Sites \(S=\{(x_i,y_i,w_i)\}_{i=1}^n\) with \(n\ge 2\)
-\Ensure Per-site half-plane sets \(\{\mathcal H_i\}_{i=1}^n\)
+Per site, these constraints are grouped as
+\(\mathcal{H}_i=\{(a_{ij},b_{ij},c_{ij})\mid j\ne i\}\),
+which encodes the cell by intersection \(V_i=\bigcap_{H\in\mathcal{H}_i}H\).
+The collection \(\{\mathcal{H}_i\}_{i=1}^n\) supports later polygon
+reconstruction by half-plane clipping while providing \(O(1)\) access to
+each cell’s defining inequalities.
 
-\State \( \text{PowerRegions} \leftarrow [\,]\)
-\For{\(i \gets 1 \ \textbf{to}\ n\)}
-    \State \( \mathcal H_i \leftarrow [\,]\); \( (x_i,y_i,w_i) \leftarrow S[i]\)
-    \For{\(j \gets 1 \ \textbf{to}\ n\)}
-        \If{\(j = i\)} \State \textbf{continue} \EndIf
-        \State \( (x_j,y_j,w_j) \leftarrow S[j]\)
-        \State \( a \leftarrow 2(x_j-x_i),\quad b \leftarrow 2(y_j-y_i)\)
-        \State \( c \leftarrow (x_j^2+y_j^2)-(x_i^2+y_i^2)+(w_i-w_j)\)
-        \State append \((a,b,c)\) to \(\mathcal H_i\)
+\psubsec{Algorithmic Overview}
+
+The Power Diagram is constructed by evaluating all ordered pairs of weighted sites to derive the affine half-planes that define each cell.  
+For every site \(s_i=(x_i,y_i,w_i)\), the algorithm iterates through all other sites \(s_j\ (j\neq i)\) and computes the bisector coefficients of \(\phi_i(p)\le\phi_j(p)\) in linear form:
+\[
+a_{ij}=2(x_j-x_i),\quad
+b_{ij}=2(y_j-y_i),\quad
+c_{ij}=(x_j^2+y_j^2)-(x_i^2+y_i^2)+(w_i-w_j).
+\]
+Each triple \((a_{ij},b_{ij},c_{ij})\) is stored in \(\mathcal{H}_i\), the constraint set representing the cell of \(s_i\).  
+After all pairs are processed, the output is the collection \(\{\mathcal{H}_i\}_{i=1}^n\); convex cells can later be recovered by clipping \(\bigcap_{H\in\mathcal{H}_i}H\).
+
+\begin{algorithm}[H]
+\caption{Power Diagram Construction}
+\begin{algorithmic}[1]
+\Require Weighted sites \(S=\{(x_i,y_i,w_i)\}_{i=1}^n\)
+\Ensure Per-site half-plane sets \(\{\mathcal{H}_i\}_{i=1}^n\)
+
+\For{\(i=1\) to \(n\)}
+    \State \(\mathcal{H}_i\gets[\,]\)
+    \For{\(j=1\) to \(n\)}
+        \If{\(j=i\)} \State \textbf{continue} \EndIf
+        \State \(a\gets2(x_j-x_i);\ b\gets2(y_j-y_i)\)
+        \State \(c\gets(x_j^2+y_j^2)-(x_i^2+y_i^2)+(w_i-w_j)\)
+        \State append \((a,b,c)\) to \(\mathcal{H}_i\)
     \EndFor
-    \State append \(\mathcal H_i\) to \(\text{PowerRegions}\)
 \EndFor
-\State \Return \(\text{PowerRegions}\)
+\State \Return \(\{\mathcal{H}_i\}_{i=1}^n\)
 \end{algorithmic}
 \end{algorithm}
 
-Each clipping preserves convexity, and the total set of cells forms a complete partition of the plane.
+\psec{Test Case Design}
 
-\subsection*{4. Test Case Design}
+\psubsec{Special Cases}
 
-\paragraph{4.1 Special Cases}\
+To ensure robustness, representative configurations are defined to capture the principal geometric and numerical challenges unique to weighted Voronoi (Power) diagrams.  
+Extreme weight disparities test the algorithm’s handling of dominant sites and correctly identifying empty or vanishing cells.  
+The unweighted limit (\(w_i\!\equiv\!0\)) verifies degeneration to the standard Voronoi case and correctness of affine bisector formation.  
+Collinear or near-collinear sites examine numerical stability under limited angular diversity, producing elongated or semi-infinite cells.  
+Negative weights evaluate the correctness of half-plane orientation when sign changes occur in \((w_i-w_j)\).  
+Coincident sites with different weights confirm that the higher-weight site dominates and the lower-weight site degenerates into a zero-area region.  
+Together, these scenarios define the space of valid yet challenging inputs against which the subsequent Power Diagram cases are systematically designed.
 
-In the Power Diagram construction, several degenerate and numerically sensitive configurations may arise due to the interaction between spatial distribution and weight magnitude.  
-Unlike the standard Voronoi diagram, where only geometric proximity determines cell boundaries, the weighted form introduces additional conditions that can lead to cell suppression, unbounded regions, or numerical instability.  
-To ensure robustness and completeness of the implementation, representative special cases are designed to cover the following scenarios:
-
-\begin{itemize}
-    \item \textbf{Extremely weighted dominance.}  
-    When one site has a substantially larger weight than all others, its corresponding cell can expand disproportionately, possibly eliminating or minimizing neighboring cells.  
-    This case tests whether the algorithm correctly handles \emph{empty cells} (sites whose feasible half-plane intersection vanishes) without numerical breakdown.
-
-    \item \textbf{Unweighted baseline (degeneration to standard Voronoi).}  
-    Setting all weights to zero reduces the formulation to the classical Voronoi diagram, in which all bisectors are unbiased Euclidean midlines.  
-    This baseline verifies the consistency of half-plane generation and correctness of affine bisector computation under the unweighted limit.
-
-    \item \textbf{Collinear or nearly collinear sites.}  
-    When multiple sites are placed on the same straight line, the resulting bisectors may intersect in unstable or near-parallel configurations.  
-    Such cases produce long, narrow, or even semi-infinite cells.  
-    They test the stability of orientation and clipping logic under limited angular diversity.
-
-    \item \textbf{Negative weights.}  
-    Negative weights correspond to virtual “imaginary circles” in the power distance formulation.  
-    Although geometrically valid, they invert the direction of certain half-planes and may enlarge cells unexpectedly.  
-    This scenario ensures that the implementation remains correct for all real-valued weights and that sign changes do not disrupt linear partitioning.
-
-    \item \textbf{Coincident sites (identical coordinates with different weights).}  
-    When two or more sites share the same spatial position but possess different weights, the cell of the lower-weight site should vanish completely.  
-    This case examines whether the algorithm correctly distinguishes dominance in the power comparison and properly identifies zero-area cells.
-
-\end{itemize}
-
-Together, these special cases comprehensively test the geometric and numerical stability of the Power Diagram implementation.  
-They ensure that the algorithm remains valid across extreme weight differences, degeneracy to the classical Voronoi case, collinearity-induced instability, negative-weight configurations, and coincident-site dominance, all of which are critical for achieving robustness in both two-dimensional analysis and potential three-dimensional extensions.
-\paragraph{4.2 Case 1: Unweighted Baseline with Collinear Strip Degeneracy}\
+\psubsec{Case 1: Unweighted Baseline with Collinear Strip Degeneracy}
 
 \textbf{Objectives and algorithmic checks:}
 \begin{enumerate}
@@ -568,7 +553,7 @@ Ten sites are used with $w_i=0$ for all $i$. Five sites are placed on a single l
 \textbf{Conclusion:}
 Case~1 isolates two critical aspects in a controlled setting: the $w_i=0$ limit, which must reproduce standard Voronoi behavior, and the sensitivity of affine bisectors under collinearity. It provides a clean baseline to confirm correct bisector construction from the power model and to test stability when sites induce narrow or semi-infinite cells, while avoiding empty-cell artifacts expected only under extreme weighting.
 
-\paragraph{4.3 Case 2: Extreme Weight Dominance with a Negative-Weight Outlier}\
+\psubsec{Case 2: Extreme Weight Dominance with a Negative-Weight Outlier}
 
 \textbf{Objectives and algorithmic checks:}
 \begin{enumerate}
@@ -583,7 +568,7 @@ Ten sites are placed with heterogeneous weights. One site at the scene center (e
 \textbf{Conclusion:}
 Case~2 targets two weighted-specific edge conditions absent in classical Voronoi: global dominance induced by extreme positive weights and correctness under negative weights. It stresses the half-plane construction $a_{ij},b_{ij},c_{ij}$ with large-magnitude $(w_i-w_j)$, checks that suppressed neighbors are reported as empty cells, and confirms that linear bisectors and cell topology remain valid across strong weight contrasts.
 
-\paragraph{4.4 Case 3: Coincident Sites with Mild Weights and a Weak Collinear Triplet}\
+\psubsec{Case 3: Coincident Sites with Mild Weights and a Weak Collinear Triplet}
 
 \textbf{Objectives and algorithmic checks:}
 \begin{enumerate}
@@ -598,7 +583,7 @@ Ten sites are used with moderate weight variation. Two \emph{coincident pairs} a
 \textbf{Conclusion:}
 Case~3 simultaneously exercises coincident-site dominance (zero-area detection), local collinearity robustness, and routine weighted behavior in the surrounding field. It confirms that the half-plane system correctly encodes priority at identical coordinates, produces stable affine bisectors near short collinear runs, and maintains clear topology without spurious empty cells beyond the intended degenerate pair.
 
-\paragraph{4.5 Visual Summary and Case Coverage}\
+\psubsec{Visual Summary and Case Coverage}
 
 \begin{figure}[H]
     \centering
@@ -616,7 +601,7 @@ Case~2 probes weight-scale disparity, confirming dominance-induced suppression a
 Case~3 exercises coincident-site priority and local collinearity, verifying zero-area detection and stable edge formation in routine weighted settings. 
 Together, they provide a compact yet comprehensive stress test for half-plane generation, empty-cell identification, and subsequent polygon recovery by clipping.
 
-\subsection*{5. Visualization and Results Analysis}
+\psec{Visualization and Results Analysis}
 
 Following the data structures and algorithmic framework described in previous sections, the implemented Power Diagram generator was applied to the three representative test cases introduced in Section~4.  
 The resulting diagrams are shown in Figure~\ref{fig:power_diagrams}, where each subfigure corresponds to one test case:
@@ -653,9 +638,9 @@ Overall, the visualization results align precisely with theoretical expectations
 The Power Diagram implementation successfully handles unweighted, highly weighted, negative-weight, and coincident-site configurations using a unified half-plane formulation.  
 All observed partitions are convex, non-overlapping, and exhibit clean boundaries, demonstrating both correctness and numerical stability of the proposed algorithm.
 
-\subsection*{6. Complexity Analysis}
+\psec{Complexity Analysis}
 
-\paragraph{6.1 Theoretical}\
+\psubsec{Theoretical}
 
 The Power Diagram construction algorithm operates by evaluating all ordered pairs of weighted sites and computing the affine half-plane coefficients for each interaction.  
 Let \(n\) denote the number of sites in the input set \(S=\{(x_i,y_i,w_i)\}_{i=1}^n\).  
@@ -689,7 +674,7 @@ In summary:
 This quadratic behavior is intrinsic to any naïve all-pairs construction of weighted bisectors, as every site-to-site relation must be evaluated once.  
 Subsequent clipping against a bounding box, performed later for visualization, is linear in the number of half-planes per site and does not alter the overall asymptotic bound.
 
-\paragraph{6.2 Empirical}\
+\psubsec{Empirical}
 
 To empirically validate the theoretical complexity derived in Section~6.1, two rounds of experiments were conducted using progressively larger site sets to observe time, operation, and memory scaling behavior.  
 Each round generated multiple random site configurations with increasing $n$, ensuring statistical robustness and visual consistency across weighted distributions.
@@ -762,6 +747,8 @@ No deviations from convexity or numerical instability were observed even at $n=2
 Overall, the empirical evidence supports the theoretical conclusion that the implemented Power Diagram generator operates in $\Theta(n^2)$ time and $\Theta(n^2)$ space.  
 The high-quality fits in both operation count and memory growth confirm that each site-to-site relation contributes a constant computational cost, validating the all-pairs bisector formulation and its deterministic complexity characteristics.
 
+\setcounter{Psec}{0}
+\setcounter{Psubsec}{0}
 \newpage
 
 \end{document}
