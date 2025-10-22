@@ -104,6 +104,8 @@ Implement Melkman's algorithm to compute the convex hull of a simple polygon in 
     \item Test cases with at least three different polygons.
 \end{enumerate}
 
+\newpage
+
 \subsection*{1. Problem Definition and Notation}
 
 \textbf{Simple polygon:} A simple polygon is a two-dimensional planar shape formed by connecting a finite sequence of distinct vertices in order and closing the loop. Adjacent edges meet only at their shared endpoints, and no non-adjacent edges intersect. This guarantees a single, connected, and non-self-intersecting boundary that encloses a finite region in the plane. In this report, we focus exclusively on polygons in the two-dimensional Euclidean space $\mathbb{R}^2$, since Melkman’s algorithm is specifically designed for 2D convex hull construction.
@@ -120,7 +122,7 @@ To evaluate geometric relations, the orientation of three points $a$, $b$, and $
 \]
 where a positive value means that $c$ lies to the left of the directed edge $ab$, a negative value indicates the right side, and zero denotes collinearity.
 
-\subsection*{2. Data Structures and Algorithmic Idea}
+\subsection*{2. Data Structures and Algorithmic}
 
 \paragraph{2.1 Data structures}\
 
@@ -136,7 +138,7 @@ D = [d_0, d_1, \dots, d_k], \quad d_i \in P.
 This structure allows the algorithm to dynamically add or remove vertices when maintaining the left-turn property required for convexity. 
 At the end of the iteration, the vertices remaining in $D$ form the convex hull in counterclockwise order.
 
-\paragraph{2.2 Algorithmic idea}\
+\paragraph{2.2 Algorithmic Overview}\
 
 Melkman’s algorithm incrementally constructs the convex hull of a simple polygon in a single linear pass over its ordered vertices. 
 It maintains a double-ended queue $D$ that simultaneously represents the upper and lower chains of the evolving convex hull. 
@@ -378,7 +380,7 @@ Overall, the empirical data strongly supports the theoretical claim that Melkman
 
 
 \newpage
-\problem{General Voronoi}
+\problem{General Voronoi Diagram (Power Diagram Variant)}
 
 Study general Voronoi diagrams and implement one variant of your choice.\bigskip
 
@@ -392,6 +394,373 @@ Study general Voronoi diagrams and implement one variant of your choice.\bigskip
     \item Analyze the time and space complexity.
     \item Test cases with at least three different point configurations.
 \end{enumerate}
+
+\newpage
+
+\subsection*{1. Variant Selection and Motivation}
+
+The variant selected in this study is the \textbf{Power Diagram} (also known as the Laguerre–Voronoi Diagram), due to its strong theoretical and practical relevance to my ongoing research on three-dimensional medical image reconstruction.  
+In 3D ultrasound image segmentation and reconstruction, it is often necessary to partition the space into weighted regions according to the spatial features or importance of different points, in order to generate structurally consistent and geometrically continuous volumetric representations.  
+By introducing additive weights into the distance metric, the Power Diagram allows each cell to depend not only on spatial position but also on local weighting factors, which aligns well with the inherently non-uniform distribution of anatomical structures in medical images.  
+Its convexity and controllability ensure numerical stability in geometric computations, while its formulation naturally extends to three dimensions and connects seamlessly with Delaunay triangulation and regular tessellation methods.  
+Therefore, the Power Diagram provides both a solid theoretical foundation and a practical geometric framework for understanding and implementing weighted spatial partitioning in 3D medical image reconstruction.
+
+\subsection*{2. Problem Definition and Notation}
+
+\textbf{Input.}  
+A finite set of weighted sites
+\[
+S=\{(x_i,y_i,w_i)\mid i=1,\dots,n\}\subset\mathbb{R}^2\times\mathbb{R},
+\]
+where $(x_i,y_i)$ is the location of site $s_i$ and $w_i$ is a scalar weight controlling its influence.
+
+\textbf{Power distance.}  
+For $p=(x,y)\in\mathbb{R}^2$ and $s_i=(x_i,y_i,w_i)$,
+\[
+\phi_i(p)=\|p-s_i\|^2-w_i .
+\]
+This definition yields affine bisectors between any pair of sites.
+
+\textbf{Power cell.}  
+The cell of $s_i$ is
+\[
+V_i=\{p\in\mathbb{R}^2\mid \phi_i(p)\le \phi_j(p),\ \forall j\neq i\},
+\]
+i.e., the intersection of half-planes that favor $s_i$ over every $s_j$.
+
+\textbf{Output.}  
+A per-site list of half-planes encoding the diagram rather than explicit polygon vertices.  
+For each $s_i$,
+\[
+\mathcal{H}_i=\{(a_{ij},b_{ij},c_{ij})\mid a_{ij}x+b_{ij}y\le c_{ij},\ j\neq i\},
+\]
+where each triple represents the kept side of the bisector $\phi_i\le\phi_j$.  
+Cells are implicit as $V_i=\bigcap_{H\in\mathcal{H}_i}H$.  
+With \texttt{stats=True}, the procedure returns operation counts and the asymptotic summary $\Theta(n^2)$ for time and space.
+
+\textbf{Goal.}  
+Construct the per-site half-plane sets $\{\mathcal{H}_i\}$ for a Power Diagram, visualize resulting cells by clipping over a bounding box when needed, and analyze theoretical and empirical complexity.
+
+\textbf{Notations.}  
+\begin{itemize}
+  \item $s_i=(x_i,y_i,w_i)$: the $i$-th weighted site.
+  \item $\phi_i(p)$: power distance from $p$ to $s_i$.
+  \item $V_i$: implicit cell of $s_i$ given by $\bigcap \mathcal{H}_i$.
+  \item $(a,b,c)$: half-plane coefficients for $ax+by\le c$.
+  \item $B=[x_{\min},y_{\min},x_{\max},y_{\max}]$: rendering/clipping box used only for visualization.
+  \item $H_{ij}$: the half-plane $\{p\mid \phi_i(p)\le \phi_j(p)\}$ contributing one $(a_{ij},b_{ij},c_{ij})$ to $\mathcal{H}_i$.
+\end{itemize}
+
+\subsection*{3. Data Structures and Algorithm}
+
+\paragraph{3.1 Data Structures}\
+
+\begin{itemize}
+    \item \textbf{Site list:}  
+    A sequential array \texttt{sites\_in[i] = (x, y, w)} storing the integer coordinates and weights of all input sites.  
+    Each element corresponds to a weighted site $s_i = (x_i, y_i, w_i)$ used to generate one power cell.
+
+    \item \textbf{Half-plane representation:}  
+    For every ordered pair of distinct sites $(s_i, s_j)$, the bisector of the power distance equation $\phi_i(p)=\phi_j(p)$
+    can be written as a linear inequality
+    \[
+    a_{ij}x + b_{ij}y \le c_{ij},
+    \]
+    where 
+    \[
+    a_{ij} = 2(x_j - x_i), \quad
+    b_{ij} = 2(y_j - y_i), \quad
+    c_{ij} = (x_j^2 + y_j^2) - (x_i^2 + y_i^2) + (w_i - w_j).
+    \]
+    Each tuple $(a,b,c)$ is stored as a \texttt{HalfPlane} record satisfying the form \texttt{ax + by <= c}.  
+    All half-planes associated with one site are grouped as
+    \[
+    \mathcal{H}_i = \{(a_{ij}, b_{ij}, c_{ij}) \mid j \ne i\},
+    \]
+    representing the complete intersection that defines $V_i$.
+
+    \item \textbf{Per-site region list:}  
+    A list of lists \texttt{power\_regions[i]} that stores $\mathcal{H}_i$ for each site.  
+    This structure provides constant-time access to all bounding half-planes of any cell and supports later polygon reconstruction through half-plane clipping.
+
+    \end{itemize}
+
+\paragraph{3.2 Algorithmic Overview}\
+
+The procedure constructs the Power Diagram by enumerating all ordered site pairs, deriving the affine half-planes that favor each site, and grouping these half-planes per site. Given a weighted set \(S=\{(x_i,y_i,w_i)\}_{i=1}^n\) with \(n\ge 2\), the algorithm initializes an empty container for each site’s constraints \(\mathcal H_i\). For every \(j\neq i\), it computes the coefficients of the bisector \(\phi_i(p)\le \phi_j(p)\) in the linear form \(a_{ij}x+b_{ij}y\le c_{ij}\) using
+\[
+a_{ij}=2(x_j-x_i),\qquad
+b_{ij}=2(y_j-y_i),\qquad
+c_{ij}=(x_j^2+y_j^2)-(x_i^2+y_i^2)+(w_i-w_j).
+\]
+The triple \((a_{ij},b_{ij},c_{ij})\) is appended to \(\mathcal H_i\). After processing all pairs, the output is the collection \(\{\mathcal H_i\}_{i=1}^n\). Polygonal cells \(V_i\) can be recovered later by clipping \(\bigcap_{H\in\mathcal H_i}H\) against a rendering bounding box. 
+\begin{algorithm}[H]
+\caption{BUILD\_POWER\_CELLS}
+\begin{algorithmic}[1]
+\Require Sites \(S=\{(x_i,y_i,w_i)\}_{i=1}^n\) with \(n\ge 2\)
+\Ensure Per-site half-plane sets \(\{\mathcal H_i\}_{i=1}^n\)
+
+\State \( \text{PowerRegions} \leftarrow [\,]\)
+\For{\(i \gets 1 \ \textbf{to}\ n\)}
+    \State \( \mathcal H_i \leftarrow [\,]\); \( (x_i,y_i,w_i) \leftarrow S[i]\)
+    \For{\(j \gets 1 \ \textbf{to}\ n\)}
+        \If{\(j = i\)} \State \textbf{continue} \EndIf
+        \State \( (x_j,y_j,w_j) \leftarrow S[j]\)
+        \State \( a \leftarrow 2(x_j-x_i),\quad b \leftarrow 2(y_j-y_i)\)
+        \State \( c \leftarrow (x_j^2+y_j^2)-(x_i^2+y_i^2)+(w_i-w_j)\)
+        \State append \((a,b,c)\) to \(\mathcal H_i\)
+    \EndFor
+    \State append \(\mathcal H_i\) to \(\text{PowerRegions}\)
+\EndFor
+\State \Return \(\text{PowerRegions}\)
+\end{algorithmic}
+\end{algorithm}
+
+Each clipping preserves convexity, and the total set of cells forms a complete partition of the plane.
+
+\subsection*{4. Test Case Design}
+
+\paragraph{4.1 Special Cases}\
+
+In the Power Diagram construction, several degenerate and numerically sensitive configurations may arise due to the interaction between spatial distribution and weight magnitude.  
+Unlike the standard Voronoi diagram, where only geometric proximity determines cell boundaries, the weighted form introduces additional conditions that can lead to cell suppression, unbounded regions, or numerical instability.  
+To ensure robustness and completeness of the implementation, representative special cases are designed to cover the following scenarios:
+
+\begin{itemize}
+    \item \textbf{Extremely weighted dominance.}  
+    When one site has a substantially larger weight than all others, its corresponding cell can expand disproportionately, possibly eliminating or minimizing neighboring cells.  
+    This case tests whether the algorithm correctly handles \emph{empty cells} (sites whose feasible half-plane intersection vanishes) without numerical breakdown.
+
+    \item \textbf{Unweighted baseline (degeneration to standard Voronoi).}  
+    Setting all weights to zero reduces the formulation to the classical Voronoi diagram, in which all bisectors are unbiased Euclidean midlines.  
+    This baseline verifies the consistency of half-plane generation and correctness of affine bisector computation under the unweighted limit.
+
+    \item \textbf{Collinear or nearly collinear sites.}  
+    When multiple sites are placed on the same straight line, the resulting bisectors may intersect in unstable or near-parallel configurations.  
+    Such cases produce long, narrow, or even semi-infinite cells.  
+    They test the stability of orientation and clipping logic under limited angular diversity.
+
+    \item \textbf{Negative weights.}  
+    Negative weights correspond to virtual “imaginary circles” in the power distance formulation.  
+    Although geometrically valid, they invert the direction of certain half-planes and may enlarge cells unexpectedly.  
+    This scenario ensures that the implementation remains correct for all real-valued weights and that sign changes do not disrupt linear partitioning.
+
+    \item \textbf{Coincident sites (identical coordinates with different weights).}  
+    When two or more sites share the same spatial position but possess different weights, the cell of the lower-weight site should vanish completely.  
+    This case examines whether the algorithm correctly distinguishes dominance in the power comparison and properly identifies zero-area cells.
+
+\end{itemize}
+
+Together, these special cases comprehensively test the geometric and numerical stability of the Power Diagram implementation.  
+They ensure that the algorithm remains valid across extreme weight differences, degeneracy to the classical Voronoi case, collinearity-induced instability, negative-weight configurations, and coincident-site dominance, all of which are critical for achieving robustness in both two-dimensional analysis and potential three-dimensional extensions.
+\paragraph{4.2 Case 1: Unweighted Baseline with Collinear Strip Degeneracy}\
+
+\textbf{Objectives and algorithmic checks:}
+\begin{enumerate}
+    \item Verify degeneration to the classical Voronoi diagram when all weights vanish ($w_i\equiv 0$); confirm that affine bisectors are computed correctly from the power-distance formulation.
+    \item Assess numerical stability under extended collinearity: multiple sites placed on a common line produce near-parallel bisectors and elongated cells; check that half-plane generation and later polygon recovery remain consistent.
+    \item Ensure no spurious empty cells arise in the unweighted regime; validate that all cells are bounded or unbounded as predicted by geometry rather than numerical artifacts.
+\end{enumerate}
+
+\textbf{Construction method:}
+Ten sites are used with $w_i=0$ for all $i$. Five sites are placed on a single line to induce collinearity, e.g., along $y=520$ at $x\in\{160, 320, 500, 680, 840\}$. The remaining five are scattered off the line to prevent an overall 1D collapse, e.g., $(200,260)$, $(780,610)$, $(880,640)$, $(180,180)$, $(420,360)$. This layout yields a pronounced “collinear strip” interacting with a sparse off-line background, forcing near-parallel bisectors and long faces while preserving a genuinely 2D configuration.
+
+\textbf{Conclusion:}
+Case~1 isolates two critical aspects in a controlled setting: the $w_i=0$ limit, which must reproduce standard Voronoi behavior, and the sensitivity of affine bisectors under collinearity. It provides a clean baseline to confirm correct bisector construction from the power model and to test stability when sites induce narrow or semi-infinite cells, while avoiding empty-cell artifacts expected only under extreme weighting.
+
+\paragraph{4.3 Case 2: Extreme Weight Dominance with a Negative-Weight Outlier}\
+
+\textbf{Objectives and algorithmic checks:}
+\begin{enumerate}
+    \item Validate dominance under large positive weights: confirm that a single high-weight site expands its cell and can suppress neighbors, producing correctly detected \emph{empty cells} when the half-plane intersection vanishes.
+    \item Verify sign handling for negative weights: ensure that the bisector orientation and the inequality side ($a_{ij}x+b_{ij}y\le c_{ij}$) remain correct when $w_j<0$, and that linear partitioning is preserved.
+    \item Test numerical stability under weight-scale disparity: large $|w|$ must not flip half-planes due to round-off, and the resulting cells must remain geometrically consistent upon polygon recovery by clipping.
+\end{enumerate}
+
+\textbf{Construction method:}
+Ten sites are placed with heterogeneous weights. One site at the scene center (e.g., $(520,520)$) is assigned a very large weight $w_c\!\gg\!0$. Around it, seven to eight sites are positioned in a loose ring spanning all quadrants with medium or small weights to induce compression. A remote outlier site (e.g., $(940,220)$) is given a \emph{negative} weight $w_{-}\!<\!0$ to exercise sign-sensitive bisector formation. All coordinates are chosen to avoid exact symmetry, preventing accidental cancellations in the affine coefficients.
+
+\textbf{Conclusion:}
+Case~2 targets two weighted-specific edge conditions absent in classical Voronoi: global dominance induced by extreme positive weights and correctness under negative weights. It stresses the half-plane construction $a_{ij},b_{ij},c_{ij}$ with large-magnitude $(w_i-w_j)$, checks that suppressed neighbors are reported as empty cells, and confirms that linear bisectors and cell topology remain valid across strong weight contrasts.
+
+\paragraph{4.4 Case 3: Coincident Sites with Mild Weights and a Weak Collinear Triplet}\
+
+\textbf{Objectives and algorithmic checks:}
+\begin{enumerate}
+    \item Validate power-based dominance at identical coordinates: when two sites share the same position, confirm that the higher-weight site fully owns the location and the lower-weight site degenerates to a zero-area (empty) cell.
+    \item Test local stability with a short collinear segment: three nearly aligned sites should yield elongated but well-formed affine edges without topological artifacts during polygon recovery.
+    \item Ensure absence of unintended global swallowing: with mild weights elsewhere, non-coincident sites should retain regular cells; verify correct half-plane orientation and boundedness where expected.
+\end{enumerate}
+
+\textbf{Construction method:}
+Ten sites are used with moderate weight variation. Two \emph{coincident pairs} are created at two distinct coordinates, e.g., $q_1=(360,420)$ and $q_2=(720,380)$, with weights $w^\text{hi}>w^\text{lo}$ at each location to enforce dominance and degeneracy. The remaining six sites are scattered to form a generic background with small-to-medium weights. Among these six, choose three to form a \emph{weak collinear} triplet spanning a short segment (e.g., $(260,520)$, $(310,515)$, $(360,510)$), avoiding long-range alignment that could collapse the diagram. Coordinates are selected to break symmetry and prevent accidental equalities in $a_{ij},b_{ij},c_{ij}$.
+
+\textbf{Conclusion:}
+Case~3 simultaneously exercises coincident-site dominance (zero-area detection), local collinearity robustness, and routine weighted behavior in the surrounding field. It confirms that the half-plane system correctly encodes priority at identical coordinates, produces stable affine bisectors near short collinear runs, and maintains clear topology without spurious empty cells beyond the intended degenerate pair.
+
+\paragraph{4.5 Visual Summary and Case Coverage}\
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/sites_cases.png}
+    \caption{Site distributions and indicative weight circles for the three designed Power-Diagram cases. 
+    Left: Case~1 (unweighted baseline with a collinear strip); 
+    Middle: Case~2 (extreme positive weight at center plus a negative-weight outlier); 
+    Right: Case~3 (two coincident-site pairs with mild weights and a weak collinear triplet).}
+\end{figure}
+
+\textbf{Summary of coverage.}
+The trio of cases spans the principal geometric and weighted degeneracies relevant to Power Diagrams. 
+Case~1 validates the $w_i\!\equiv\!0$ limit against standard Voronoi behavior while stressing affine bisectors under extended collinearity. 
+Case~2 probes weight-scale disparity, confirming dominance-induced suppression and correctness for negative weights without breaking linear partitioning. 
+Case~3 exercises coincident-site priority and local collinearity, verifying zero-area detection and stable edge formation in routine weighted settings. 
+Together, they provide a compact yet comprehensive stress test for half-plane generation, empty-cell identification, and subsequent polygon recovery by clipping.
+
+\subsection*{5. Visualization and Results Analysis}
+
+Following the data structures and algorithmic framework described in previous sections, the implemented Power Diagram generator was applied to the three representative test cases introduced in Section~4.  
+The resulting diagrams are shown in Figure~\ref{fig:power_diagrams}, where each subfigure corresponds to one test case:
+Case~1 (unweighted baseline with collinear strip),
+Case~2 (extreme weight dominance with a negative-weight outlier),
+and Case~3 (coincident-site pairs with mild weights and a weak collinear triplet).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/power_diagram.png}
+    \caption{Visualization of Power Diagram results for the three designed test cases.
+    Each subfigure shows the weighted sites (black dots) and their associated power cells (thick black lines). 
+    Dashed circles indicate equivalent “power radii” $\sqrt{|w_i|}$ for visualization, and gray shading marks valid bounded cells.
+    Case~1: $w_i\!\equiv\!0$ (standard Voronoi); 
+    Case~2: strong central dominance with one negative-weight outlier; 
+    Case~3: two coincident-site pairs and a weak collinear triplet.}
+    \label{fig:power_diagrams}
+\end{figure}
+
+\textbf{Result correctness and analysis:}  
+The visual outcomes confirm that the constructed half-plane system and subsequent clipping process correctly produce the expected linear partitions across all weighting regimes.
+
+For \emph{Case~1}, the resulting diagram perfectly matches the standard Voronoi structure.  
+All bisectors appear as straight Euclidean midlines, and the five collinear sites yield narrow or elongated regions without degeneracy.  
+This confirms that the unweighted limit of the algorithm remains geometrically stable and numerically well-conditioned.
+
+For \emph{Case~2}, the large central weight generates a dominant cell that expands across most of the domain, while several neighboring sites collapse into empty or near-zero cells, correctly reported as “swallowed” regions.  
+The negative-weight outlier retains a valid and slightly enlarged cell, verifying that sign changes in $w_i$ are handled consistently and do not disrupt linearity or convexity of the cells.
+
+For \emph{Case~3}, the coincident-site pairs behave as expected: the higher-weight site at each shared coordinate acquires a normal bounded region, whereas the lower-weight counterpart degenerates into a zero-area cell.  
+The short collinear triplet produces locally parallel bisectors that remain numerically stable, confirming the robustness of half-plane intersection and clipping near near-degenerate alignments.
+
+Overall, the visualization results align precisely with theoretical expectations.  
+The Power Diagram implementation successfully handles unweighted, highly weighted, negative-weight, and coincident-site configurations using a unified half-plane formulation.  
+All observed partitions are convex, non-overlapping, and exhibit clean boundaries, demonstrating both correctness and numerical stability of the proposed algorithm.
+
+\subsection*{6. Complexity Analysis}
+
+\paragraph{6.1 Theoretical}\
+
+The Power Diagram construction algorithm operates by evaluating all ordered pairs of weighted sites and computing the affine half-plane coefficients for each interaction.  
+Let \(n\) denote the number of sites in the input set \(S=\{(x_i,y_i,w_i)\}_{i=1}^n\).  
+For each site \(s_i\), the algorithm iterates through all other sites \(s_j\ (j\neq i)\) to compute a bisector inequality of the form \(a_{ij}x+b_{ij}y\le c_{ij}\).  
+This results in a total of \(n(n-1)\) half-plane equations generated across the entire set.
+
+Each iteration involves a constant number of arithmetic operations—specifically, subtractions, multiplications, and additions—to derive the coefficients:
+\[
+a_{ij}=2(x_j-x_i),\quad b_{ij}=2(y_j-y_i),\quad
+c_{ij}=(x_j^2+y_j^2)-(x_i^2+y_i^2)+(w_i-w_j).
+\]
+Since no iterative refinement, sorting, or geometric clipping occurs during this phase, every computation is performed in constant time.  
+Therefore, the overall time complexity of the coefficient construction is:
+\[
+T(n) = c \cdot n(n-1) = \Theta(n^2),
+\]
+where \(c\) is a small constant representing the fixed arithmetic cost per bisector.
+
+The space complexity is dominated by the storage of all half-plane triples \((a,b,c)\).  
+Each site \(s_i\) maintains \((n-1)\) such records, giving a total storage requirement of:
+\[
+M(n) = n(n-1) = \Theta(n^2).
+\]
+Auxiliary memory for temporary variables and the output container is linear in \(n\), negligible compared to the quadratic term.
+
+In summary:
+\[
+\text{Time complexity: } \Theta(n^2), \qquad
+\text{Space complexity: } \Theta(n^2).
+\]
+This quadratic behavior is intrinsic to any naïve all-pairs construction of weighted bisectors, as every site-to-site relation must be evaluated once.  
+Subsequent clipping against a bounding box, performed later for visualization, is linear in the number of half-planes per site and does not alter the overall asymptotic bound.
+
+\paragraph{6.2 Empirical}\
+
+To empirically validate the theoretical complexity derived in Section~6.1, two rounds of experiments were conducted using progressively larger site sets to observe time, operation, and memory scaling behavior.  
+Each round generated multiple random site configurations with increasing $n$, ensuring statistical robustness and visual consistency across weighted distributions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/test_sites1.png}
+    \caption{Generated weighted-site configurations for the first experiment ($n=5$ to $45$). 
+    Each subfigure represents a distinct input size with randomized coordinates and weights within the displayed ranges.}
+    \label{fig:test_sites1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/test_pd1.png}
+    \caption{Resulting Power Diagrams corresponding to Figure~\ref{fig:test_sites1}. 
+    Each diagram contains convex cells computed by half-plane intersections, with empty cells shown as unfilled regions.}
+    \label{fig:test_pd1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/power_complexity1.png}
+    \caption{Empirical complexity analysis for the first experiment ($n=5$–$45$). 
+    (a) Median runtime vs.~$n$, fitted with power-law and $n\log n$ models; 
+    (b) total operation count (half-plane computations) vs.~$n$, fitted with quadratic model; 
+    (c) space cost vs.~$n$, showing stored half-plane growth and equivalent memory usage.}
+    \label{fig:power_complexity1}
+\end{figure}
+
+\textbf{First-round observations:}
+For smaller input sizes ($n\!\le\!45$), both the number of half-planes and total operation count follow a clear quadratic trend consistent with $\Theta(n^2)$ expectations.  
+However, the runtime curve exhibits minor irregularities due to external factors such as system scheduling and interpreter-level overhead, which dominate at millisecond scales.  
+The space cost remains perfectly quadratic with $R^2\!=\!1.00$, confirming that the number of stored half-planes grows as $n(n-1)$.
+
+To mitigate runtime noise and strengthen asymptotic evidence, a second set of experiments extended the range up to $n=240$, improving fit quality for both time and operation scaling.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/test_sites2.png}
+    \caption{Weighted-site configurations for the second experiment ($n=10$ to $240$). 
+    Larger sets ensure sufficient computational load to reveal true asymptotic behavior.}
+    \label{fig:test_sites2}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/test_pd2.png}
+    \caption{Power Diagrams corresponding to Figure~\ref{fig:test_sites2}. 
+    Each subfigure shows correctly formed convex cells even at high densities, verifying numerical stability for large-scale inputs.}
+    \label{fig:test_pd2}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Pictures/power_complexity2.png}
+    \caption{Empirical complexity analysis for the second experiment ($n=10$–$240$). 
+    (a) Median runtime fitted as $T(n)\propto n^{1.99}$ ($R^2=1.00$), closely matching the theoretical $\Theta(n^2)$ trend; 
+    (b) total operation count fitted as $19.0\,n(n-1)+44.8$ ($R^2=1.00$); 
+    (c) stored half-plane count and corresponding memory usage also showing perfect quadratic growth.}
+    \label{fig:power_complexity2}
+\end{figure}
+
+\textbf{Discussion:}
+Across both experimental rounds, the empirical results strongly corroborate the theoretical analysis.  
+The total number of operations and stored half-planes follow an exact quadratic law with near-perfect coefficient of determination ($R^2\!\approx\!1.00$).  
+The runtime scaling approaches $T(n)\!\propto\!n^{1.9\text{–}2.0}$, confirming the $\Theta(n^2)$ behavior once input sizes are sufficiently large to dominate constant and interpreter overheads.  
+No deviations from convexity or numerical instability were observed even at $n=240$, demonstrating that the algorithm remains robust and predictable under large-scale weighted configurations.
+
+Overall, the empirical evidence supports the theoretical conclusion that the implemented Power Diagram generator operates in $\Theta(n^2)$ time and $\Theta(n^2)$ space.  
+The high-quality fits in both operation count and memory growth confirm that each site-to-site relation contributes a constant computational cost, validating the all-pairs bisector formulation and its deterministic complexity characteristics.
 
 \newpage
 

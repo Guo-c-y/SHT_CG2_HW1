@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.10.12)  22 OCT 2025 20:59
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.10.12)  23 OCT 2025 02:22
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -615,105 +615,226 @@ Overfull \hbox (3.50371pt too wide) in paragraph at lines 86--88
 {/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc}]
 
 [2]
-Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on input line 152.
-
 
 [3]
+Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on input line 154.
+
 
 [4]
 
 [5]
-<Pictures/polygon_cases.png, id=66, 791.3565pt x 268.30237pt>
+
+[6]
+<Pictures/polygon_cases.png, id=70, 791.3565pt x 268.30237pt>
 File: Pictures/polygon_cases.png Graphic file (type png)
 <use Pictures/polygon_cases.png>
-Package pdftex.def Info: Pictures/polygon_cases.png  used on input line 263.
+Package pdftex.def Info: Pictures/polygon_cases.png  used on input line 265.
 (pdftex.def)             Requested size: 373.61061pt x 126.66708pt.
 
 
-[6]
-<Pictures/hulls.png, id=80, 791.3565pt x 268.30237pt>
+[7]
+<Pictures/hulls.png, id=85, 791.3565pt x 268.30237pt>
 File: Pictures/hulls.png Graphic file (type png)
 <use Pictures/hulls.png>
-Package pdftex.def Info: Pictures/hulls.png  used on input line 289.
+Package pdftex.def Info: Pictures/hulls.png  used on input line 291.
 (pdftex.def)             Requested size: 394.36816pt x 133.7087pt.
 
 
-[7
+[8
 pdfTeX warning (ext4): destination with the same identifier (name{figure.1}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.295 
+l.297 
        <./Pictures/polygon_cases.png>]
 
-[8
+[9
 pdfTeX warning (ext4): destination with the same identifier (name{figure.2}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.323 
+l.325 
        <./Pictures/hulls.png>]
-<Pictures/test_polygon_cases.png, id=100, 808.06894pt x 817.55438pt>
+<Pictures/test_polygon_cases.png, id=104, 808.06894pt x 817.55438pt>
 File: Pictures/test_polygon_cases.png Graphic file (type png)
 <use Pictures/test_polygon_cases.png>
-Package pdftex.def Info: Pictures/test_polygon_cases.png  used on input line 345.
+Package pdftex.def Info: Pictures/test_polygon_cases.png  used on input line 347.
 (pdftex.def)             Requested size: 394.36816pt x 398.9959pt.
 
 
-[9]
-<Pictures/test_hulls.png, id=108, 808.06894pt x 817.55438pt>
+[10]
+<Pictures/test_hulls.png, id=112, 808.06894pt x 817.55438pt>
 File: Pictures/test_hulls.png Graphic file (type png)
 <use Pictures/test_hulls.png>
-Package pdftex.def Info: Pictures/test_hulls.png  used on input line 353.
+Package pdftex.def Info: Pictures/test_hulls.png  used on input line 355.
 (pdftex.def)             Requested size: 394.36816pt x 398.9959pt.
-
-
-[10
-pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
-<argument> ...shipout:D \box_use:N \l_shipout_box 
-                                                  \__shipout_drop_firstpage_...
-l.358 
-       <./Pictures/test_polygon_cases.png>]
-<Pictures/melkman_complexity.png, id=117, 875.37038pt x 297.21037pt>
-File: Pictures/melkman_complexity.png Graphic file (type png)
-<use Pictures/melkman_complexity.png>
-Package pdftex.def Info: Pictures/melkman_complexity.png  used on input line 364.
-(pdftex.def)             Requested size: 394.36816pt x 133.89761pt.
 
 
 [11
+pdfTeX warning (ext4): destination with the same identifier (name{figure.3}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.360 
+       <./Pictures/test_polygon_cases.png>]
+<Pictures/melkman_complexity.png, id=121, 875.37038pt x 297.21037pt>
+File: Pictures/melkman_complexity.png Graphic file (type png)
+<use Pictures/melkman_complexity.png>
+Package pdftex.def Info: Pictures/melkman_complexity.png  used on input line 366.
+(pdftex.def)             Requested size: 394.36816pt x 133.89761pt.
+
+
+[12
 pdfTeX warning (ext4): destination with the same identifier (name{figure.4}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.371 
+l.373 
        <./Pictures/test_hulls.png>]
 
-[12
+[13
 pdfTeX warning (ext4): destination with the same identifier (name{figure.5}) has been already used, duplicate ignored
 <argument> ...shipout:D \box_use:N \l_shipout_box 
                                                   \__shipout_drop_firstpage_...
-l.380 \newpage
+l.382 \newpage
                <./Pictures/melkman_complexity.png>]
 
-[13] (latex_aux/report_template.aux)
+[14]
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 446.
+ (/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/ts1ptm.fd
+File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
+)
+
+[15]
+
+[16]
+
+[17]
+
+[18]
+
+[19]
+<Pictures/sites_cases.png, id=185, 860.013pt x 298.11375pt>
+File: Pictures/sites_cases.png Graphic file (type png)
+<use Pictures/sites_cases.png>
+Package pdftex.def Info: Pictures/sites_cases.png  used on input line 605.
+(pdftex.def)             Requested size: 394.36816pt x 136.70184pt.
+
+
+[20
+pdfTeX warning (ext4): destination with the same identifier (name{figure.6}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.618 
+       <./Pictures/sites_cases.png>]
+<Pictures/power_diagram.png, id=196, 834.7185pt x 296.307pt>
+File: Pictures/power_diagram.png Graphic file (type png)
+<use Pictures/power_diagram.png>
+Package pdftex.def Info: Pictures/power_diagram.png  used on input line 629.
+(pdftex.def)             Requested size: 394.36816pt x 139.99675pt.
+
+
+[21
+pdfTeX warning (ext4): destination with the same identifier (name{figure.7}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.648 
+       <./Pictures/power_diagram.png>]
+
+[22]
+<Pictures/test_sites1.png, id=210, 836.52525pt x 811.68243pt>
+File: Pictures/test_sites1.png Graphic file (type png)
+<use Pictures/test_sites1.png>
+Package pdftex.def Info: Pictures/test_sites1.png  used on input line 699.
+(pdftex.def)             Requested size: 394.36816pt x 382.65501pt.
+<Pictures/test_pd1.png, id=211, 812.58582pt x 812.58582pt>
+File: Pictures/test_pd1.png Graphic file (type png)
+<use Pictures/test_pd1.png>
+Package pdftex.def Info: Pictures/test_pd1.png  used on input line 707.
+(pdftex.def)             Requested size: 394.36816pt x 394.37642pt.
+
+
+[23
+pdfTeX warning (ext4): destination with the same identifier (name{figure.8}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.712 
+       <./Pictures/test_sites1.png>]
+<Pictures/power_complexity1.png, id=221, 1103.02087pt x 371.73882pt>
+File: Pictures/power_complexity1.png Graphic file (type png)
+<use Pictures/power_complexity1.png>
+Package pdftex.def Info: Pictures/power_complexity1.png  used on input line 715.
+(pdftex.def)             Requested size: 394.36816pt x 132.90695pt.
+
+
+[24
+pdfTeX warning (ext4): destination with the same identifier (name{figure.9}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.722 
+       <./Pictures/test_pd1.png>]
+<Pictures/test_sites2.png, id=228, 836.52525pt x 811.68243pt>
+File: Pictures/test_sites2.png Graphic file (type png)
+<use Pictures/test_sites2.png>
+Package pdftex.def Info: Pictures/test_sites2.png  used on input line 732.
+(pdftex.def)             Requested size: 394.36816pt x 382.65501pt.
+
+
+[25
+pdfTeX warning (ext4): destination with the same identifier (name{figure.10}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.737 
+       <./Pictures/power_complexity1.png>]
+<Pictures/test_pd2.png, id=236, 812.58582pt x 812.58582pt>
+File: Pictures/test_pd2.png Graphic file (type png)
+<use Pictures/test_pd2.png>
+Package pdftex.def Info: Pictures/test_pd2.png  used on input line 740.
+(pdftex.def)             Requested size: 394.36816pt x 394.37642pt.
+
+
+[26
+pdfTeX warning (ext4): destination with the same identifier (name{figure.11}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.745 
+       <./Pictures/test_sites2.png>]
+<Pictures/power_complexity2.png, id=245, 1103.02087pt x 371.73882pt>
+File: Pictures/power_complexity2.png Graphic file (type png)
+<use Pictures/power_complexity2.png>
+Package pdftex.def Info: Pictures/power_complexity2.png  used on input line 748.
+(pdftex.def)             Requested size: 394.36816pt x 132.90695pt.
+
+
+[27
+pdfTeX warning (ext4): destination with the same identifier (name{figure.12}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.755 
+       <./Pictures/test_pd2.png>]
+
+[28
+pdfTeX warning (ext4): destination with the same identifier (name{figure.13}) has been already used, duplicate ignored
+<argument> ...shipout:D \box_use:N \l_shipout_box 
+                                                  \__shipout_drop_firstpage_...
+l.765 \newpage
+               <./Pictures/power_complexity2.png>] (latex_aux/report_template.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `report_template.out' has not changed.
-(rerunfilecheck)             Checksum: 86AF2633B4CBA4F60F2EE929569A53D2;557.
+(rerunfilecheck)             Checksum: C775EC05BD40C35388DB11F8AA34458C;735.
  ) 
 Here is how much of TeX's memory you used:
- 14151 strings out of 473190
- 213266 string characters out of 5715799
- 634279 words of memory out of 5000000
- 37129 multiletter control sequences out of 15000+600000
- 583428 words of font info for 87 fonts, out of 8000000 for 9000
+ 14302 strings out of 473190
+ 216204 string characters out of 5715799
+ 638306 words of memory out of 5000000
+ 37227 multiletter control sequences out of 15000+600000
+ 585858 words of font info for 91 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  75i,7n,79p,781b,542s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on latex_aux/report_template.pdf (13 pages, 896539 bytes).
+</usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on latex_aux/report_template.pdf (28 pages, 4613090 bytes).
 PDF statistics:
- 203 PDF objects out of 1000 (max. 8388607)
- 153 compressed objects within 2 object streams
- 58 named destinations out of 1000 (max. 500000)
- 42 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 339 PDF objects out of 1000 (max. 8388607)
+ 251 compressed objects within 3 object streams
+ 106 named destinations out of 1000 (max. 500000)
+ 82 words of extra memory for PDF output out of 10000 (max. 10000000)
 
