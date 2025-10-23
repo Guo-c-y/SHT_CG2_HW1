@@ -284,8 +284,6 @@ INPUT ./Pictures/sites_cases.png
 INPUT ./Pictures/sites_cases.png
 INPUT ./Pictures/sites_cases.png
 INPUT ./Pictures/sites_cases.png
-INPUT /usr/local/texlive/2025/texmf-dist/fonts/vf/adobe/times/ptmr7t.vf
-INPUT /usr/local/texlive/2025/texmf-dist/fonts/tfm/adobe/times/ptmr8r.tfm
 INPUT ./Pictures/power_diagram.png
 INPUT ./Pictures/power_diagram.png
 INPUT ./Pictures/power_diagram.png

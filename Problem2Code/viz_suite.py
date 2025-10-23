@@ -342,7 +342,7 @@ def render_sites(
         wvals = [w for *_, w in sites]
         info = f"n = {len(sites)}    w ∈ [{min(wvals)}, {max(wvals)}]"
         ax.text(
-            0.0, _TITLE_Y, f"Case {idx+1}", transform=ax.transAxes, ha="left", va="bottom", fontsize=13
+            0.5, _TITLE_Y, f"Case {idx+1}", transform=ax.transAxes, ha="center", va="bottom", fontsize=13
         )
         ax.text(
             0.5, _INFO_Y, info, transform=ax.transAxes, ha="center", va="bottom", fontsize=8
@@ -407,7 +407,7 @@ def render_power_diagrams(
         )
 
         ax.text(
-            0.0, _TITLE_Y, f"Power Diagram {idx+1}", transform=ax.transAxes, ha="left", va="bottom", fontsize=13
+            0.5, _TITLE_Y, f"Power Diagram {idx+1}", transform=ax.transAxes, ha="center", va="bottom", fontsize=13
         )
         info = f"cells = {n_cells}    origin=({int(xmin)},{int(ymin)})    edge={int(round(span))}"
         ax.text(
